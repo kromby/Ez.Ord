@@ -23,3 +23,8 @@ go.work.sum
 
 # Data folder
 data
+
+# Visual Studio files
+bin
+obj
+.vs
