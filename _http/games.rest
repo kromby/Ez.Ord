@@ -1,0 +1,15 @@
+### Authenticate with user and pass
+# @prompt username
+# @prompt password
+
+# Create a new game
+POST {{host}}/games
+Content-Type: application/json
+Authorization: Basic {{username}}:{{password}}
+
+{
+  "type": "smu"
+}
+
+### SMU
+GET {{host}}/ping
