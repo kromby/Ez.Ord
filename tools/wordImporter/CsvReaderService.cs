@@ -12,7 +12,7 @@ namespace Ez.Word.Importer;
 
 public class CsvReaderService
 {
-    private static readonly string[] INCLUDE_TYPES = ["kk"];
+    private static readonly string[] INCLUDE_TYPES = ["hk"];
     private static readonly string[] EXCLUDE_CATEGORIES = ["ism", "föð", "móð", "bibl", "bibl,erl", "bibl,föð", "bibl,móð", "gæl"];
 
     internal static List<WordEntity> ReadWordEntities(string filePath)
