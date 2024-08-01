@@ -1,0 +1,17 @@
+{
+    "editor.formatOnSave": true,
+    "rest-client.environmentVariables": {    
+    "$shared": {
+    },
+    "local": {
+        "host": "http://localhost:8080",
+    },
+    "production": {
+        "host": "https://www.hress.org",
+    }
+},
+"azureFunctions.deploySubpath": "api",
+"azureFunctions.projectLanguage": "Custom",
+"azureFunctions.projectRuntime": "~4",
+"debug.internalConsoleOptions": "neverOpen",
+}

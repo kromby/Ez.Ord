@@ -2,18 +2,35 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 )
 
+func helloHandler(w http.ResponseWriter, r *http.Request) {
+	message := "This HTTP triggered function executed successfully. Pass a name in the query string for a personalized response.\n"
+	name := r.URL.Query().Get("name")
+	if name != "" {
+		message = fmt.Sprintf("Hello, %s. This HTTP triggered function executed successfully.\n", name)
+	}
+	fmt.Fprint(w, message)
+}
+
+func helloGinHandler(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Hello, Azure Functions with Gin!",
+	})
+}
+
 func setupRouter() *gin.Engine {
 	// Disable Console Color
 	// gin.DisableConsoleColor()
-	r := gin.Default()
+	router := gin.Default()
 
 	// Ping test
-	r.GET("/ping", func(c *gin.Context) {
+	router.GET("/api/ping", func(c *gin.Context) {
 		c.String(http.StatusOK, "pong")
 	})
 
@@ -64,7 +81,7 @@ func setupRouter() *gin.Engine {
 	// })
 
 	// Games endpoint
-	r.POST("/games", func(c *gin.Context) {
+	router.POST("/games", func(c *gin.Context) {
 		// user := c.MustGet(gin.AuthUserKey).(string)
 
 		// Parse JSON
@@ -83,11 +100,27 @@ func setupRouter() *gin.Engine {
 		}
 	})
 
-	return r
+	router.GET("/api/hello", helloGinHandler)
+	router.GET("/api/smu", helloGinHandler)
+
+	return router
 }
 
 func main() {
+	listenAddr := ":8080"
+	if val, ok := os.LookupEnv("FUNCTIONS_CUSTOMHANDLER_PORT"); ok {
+		listenAddr = ":" + val
+	}
+	// http.HandleFunc("/api/GamesCreateTrigger", helloHandler)
+
 	r := setupRouter()
 	// Listen and Server in 0.0.0.0:8080
-	r.Run(":8080")
+	r.Run(listenAddr)
+
+	if err := http.ListenAndServe(":"+listenAddr, r); err != nil {
+		log.Fatalf("Error starting server: %v", err)
+	}
+
+	log.Printf("About to listen on %s. Go to https://127.0.0.1%s/", listenAddr, listenAddr)
+	log.Fatal(http.ListenAndServe(listenAddr, nil))
 }

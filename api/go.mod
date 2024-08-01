@@ -1,4 +1,4 @@
-module ez/ord
+module handler
 
 go 1.22.5
 
