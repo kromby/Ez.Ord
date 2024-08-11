@@ -30,9 +30,6 @@ obj
 .vs
 appsettings.local.json
 
-# GO files
-go.sum
-
 
 # Azure Functions artifacts
 bin
