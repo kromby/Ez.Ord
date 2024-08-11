@@ -22,9 +22,15 @@ jobs:
 
       - name: Set up Node.js
         uses: actions/setup-node@v2
+        with:
+          node-version: "20"
 
       - name: Install dependencies
         run: npm install
+        working-directory: ./app
+
+      - name: Build Expo web
+        run: npx expo export:web
         working-directory: ./app
 
       - name: Build And Deploy
@@ -39,7 +45,7 @@ jobs:
           app_location: "./app" # App source code path
           app_build_command: "npx expo export -p web" # App build command
           api_location: "./api" # Api source code path - optional
-          output_location: "./app/dist" # Built app content directory - optional
+          output_location: "./dist" # Built app content directory - optional
           ###### End of Repository/Build Configurations ######
 
   close_pull_request_job:
