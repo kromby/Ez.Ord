@@ -1,86 +1,142 @@
+import React from 'react';
+import { View, Text, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { View, Text } from 'react-native';
 import { useGameState } from '@/hooks/useGameState';
-import { COLORS, TYPOGRAPHY, SPACING } from '@/constants/gameTokens';
-import { GameButton } from '@/components/GameButton';
+import { COLORS } from '@/constants/gameTokens';
+import { Stone } from '@/components/Stone';
+import { RuneStrip } from '@/components/RuneStrip';
+import { Divider } from '@/components/Divider';
 
 export default function SummaryScreen() {
   const router = useRouter();
   const { state, dispatch } = useGameState();
-  const theme = COLORS.parchment;
+  const tk = COLORS.parchment;
 
-  // Calculate statistics
-  const wordCount = state.playedWords.length;
-  const skippedCount = state.playedWords.filter(w => w.rating === 'skipped').length;
-  const hardCount = state.playedWords.filter(w => w.rating === 'hard').length;
-
-  const handlePlayAgain = () => {
-    dispatch({ type: 'PLAY_AGAIN' });
-    router.push('./play');
+  const map: Record<string, { color: string; label: string; glyph: string }> = {
+    easy: { color: tk.forest, label: 'Létt', glyph: '·' },
+    medium: { color: tk.ochre, label: 'Mið', glyph: '··' },
+    hard: { color: tk.rust, label: 'Þungt', glyph: '···' },
+    skipped: { color: tk.inkSoft, label: 'Sleppt', glyph: '↷' },
   };
 
-  const handleGoToMenu = () => {
-    dispatch({ type: 'GO_TO_MENU' });
-    router.push('../');
-  };
+  const played = state.playedWords || [];
+  const counts = played.reduce<Record<string, number>>((a, p) => ({ ...a, [p.rating]: (a[p.rating] || 0) + 1 }), {});
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.bg, paddingHorizontal: SPACING.lg, justifyContent: 'center' }}>
-      {/* Stats Section */}
-      <View style={{ marginBottom: SPACING.xxl }}>
-        {/* Headline */}
-        <Text style={{ ...TYPOGRAPHY.headline, color: theme.text, marginBottom: SPACING.lg }}>
-          Lokum
+    <View style={{ flex: 1, backgroundColor: tk.bg }}>
+      {/* Header */}
+      <View style={{ paddingHorizontal: 22, paddingTop: 14, paddingBottom: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 10, color: tk.inkSoft, letterSpacing: 1.4, textTransform: 'uppercase' }}>
+          Lokakafli
         </Text>
-
-        {/* Stats Container */}
-        <View style={{ marginVertical: SPACING.xl }}>
-          {/* Stat Group 1: Words played */}
-          <View style={{ marginVertical: SPACING.md }}>
-            <Text style={{ ...TYPOGRAPHY.bodySmall, color: theme.textLight }}>
-              orð
-            </Text>
-            <Text style={{ ...TYPOGRAPHY.title, color: theme.text }}>
-              {wordCount}
-            </Text>
-          </View>
-
-          {/* Stat Group 2: Skipped words */}
-          <View style={{ marginVertical: SPACING.md }}>
-            <Text style={{ ...TYPOGRAPHY.bodySmall, color: theme.textLight }}>
-              sleppt
-            </Text>
-            <Text style={{ ...TYPOGRAPHY.title, color: theme.text }}>
-              {skippedCount}
-            </Text>
-          </View>
-
-          {/* Stat Group 3: Hard words */}
-          <View style={{ marginVertical: SPACING.md }}>
-            <Text style={{ ...TYPOGRAPHY.bodySmall, color: theme.textLight }}>
-              þung
-            </Text>
-            <Text style={{ ...TYPOGRAPHY.title, color: theme.text }}>
-              {hardCount}
-            </Text>
-          </View>
-        </View>
+        <RuneStrip tk={tk} />
       </View>
 
-      {/* Buttons Section */}
-      <View style={{ gap: SPACING.sm }}>
-        <GameButton
-          label="Aftur í leik"
-          onPress={handlePlayAgain}
-          theme={theme}
-          variant="primary"
-        />
-        <GameButton
-          label="Aðalvalmynd"
-          onPress={handleGoToMenu}
-          theme={theme}
-          variant="secondary"
-        />
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 22, paddingVertical: 0 }}>
+        {/* Stats Card */}
+        <View style={{ marginTop: 18, marginBottom: 22 }}>
+          <Stone
+            tk={tk}
+            color={tk.teal}
+            fg={tk.bg}
+            depth={4}
+            radius={18}
+            style={{ paddingVertical: 20, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-around', gap: 10 }}
+          >
+            <View style={{ alignItems: 'center', borderRightWidth: 1, borderRightColor: `${tk.bg}33`, flex: 1 }}>
+              <Text style={{ fontFamily: 'DMSerifDisplay_400Regular', fontSize: 36, lineHeight: 36, fontWeight: '700', color: tk.bg }}>
+                {played.length}
+              </Text>
+              <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 9, opacity: 0.85, letterSpacing: 1.5, marginTop: 4, color: tk.bg, textTransform: 'uppercase' }}>
+                orð
+              </Text>
+            </View>
+            <View style={{ alignItems: 'center', borderRightWidth: 1, borderRightColor: `${tk.bg}33`, flex: 1 }}>
+              <Text style={{ fontFamily: 'DMSerifDisplay_400Regular', fontSize: 36, lineHeight: 36, fontWeight: '700', color: tk.bg }}>
+                {counts.skipped || 0}
+              </Text>
+              <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 9, opacity: 0.85, letterSpacing: 1.5, marginTop: 4, color: tk.bg, textTransform: 'uppercase' }}>
+                sleppt
+              </Text>
+            </View>
+            <View style={{ alignItems: 'center', flex: 1 }}>
+              <Text style={{ fontFamily: 'DMSerifDisplay_400Regular', fontSize: 36, lineHeight: 36, fontWeight: '700', color: tk.bg }}>
+                {counts.hard || 0}
+              </Text>
+              <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 9, opacity: 0.85, letterSpacing: 1.5, marginTop: 4, color: tk.bg, textTransform: 'uppercase' }}>
+                þung
+              </Text>
+            </View>
+          </Stone>
+        </View>
+
+        {/* Words List */}
+        <Divider tk={tk} label="Orðin" />
+        <View style={{ marginTop: 12, marginBottom: 22, gap: 8 }}>
+          {played.map((p, i) => {
+            const m = map[p.rating || 'skipped'];
+            return (
+              <Stone
+                key={i}
+                tk={tk}
+                radius={10}
+                depth={1}
+                style={{ paddingVertical: 10, paddingHorizontal: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                  <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 10, color: tk.inkSoft }}>
+                    {String(i + 1).padStart(2, '0')}
+                  </Text>
+                  <Text style={{ fontFamily: 'DMSerifDisplay_400Regular', fontSize: 18, fontWeight: '700', color: tk.ink, flex: 1 }} numberOfLines={1}>
+                    {p.word}
+                  </Text>
+                  <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 9, color: tk.inkSoft, letterSpacing: 1, textTransform: 'uppercase' }}>
+                    {p.category}
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 10 }}>
+                  <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 12, color: m.color, letterSpacing: 1 }}>
+                    {m.glyph}
+                  </Text>
+                  <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 10, color: m.color, letterSpacing: 1, textTransform: 'uppercase' }}>
+                    {m.label}
+                  </Text>
+                </View>
+              </Stone>
+            );
+          })}
+        </View>
+      </ScrollView>
+
+      {/* Action Buttons */}
+      <View style={{ paddingHorizontal: 22, paddingTop: 18, paddingBottom: 28, gap: 10 }}>
+        <Stone
+          tk={tk}
+          color={tk.ochre}
+          fg={tk.bg}
+          depth={3}
+          onClick={() => {
+            dispatch({ type: 'PLAY_AGAIN' });
+            router.push('./play');
+          }}
+          style={{ paddingVertical: 13, alignItems: 'center' }}
+        >
+          <Text style={{ fontFamily: 'DMSerifDisplay_400Regular', fontSize: 18, fontWeight: '700', fontStyle: 'italic', color: tk.bg }}>
+            Aftur í leik
+          </Text>
+        </Stone>
+        <Stone
+          tk={tk}
+          onClick={() => {
+            dispatch({ type: 'GO_TO_MENU' });
+            router.push('../');
+          }}
+          style={{ paddingVertical: 13, alignItems: 'center' }}
+        >
+          <Text style={{ fontFamily: 'DMSerifDisplay_400Regular', fontSize: 18, fontWeight: '700', color: tk.ink }}>
+            Aðalvalmynd
+          </Text>
+        </Stone>
       </View>
     </View>
   );
