@@ -1,35 +1,29 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { COLORS, TYPOGRAPHY, SPACING } from '@/constants/gameTokens';
 
 interface DividerProps {
-  title: string;
-  theme: typeof COLORS.parchment;
+  tk: typeof import('@/constants/gameTokens').COLORS.parchment;
+  label?: string;
 }
 
-export function Divider({ title, theme }: DividerProps) {
+export function Divider({ tk, label }: DividerProps) {
   return (
-    <View style={{ marginVertical: SPACING.lg }}>
-      <Text
-        style={{
-          color: theme.textLight,
-          fontSize: TYPOGRAPHY.label.fontSize,
-          fontFamily: TYPOGRAPHY.label.fontFamily,
-          fontWeight: '600',
-          textTransform: 'uppercase',
-          letterSpacing: 2,
-          marginBottom: SPACING.md,
-        }}
-      >
-        {title}
-      </Text>
-      <View
-        style={{
-          height: 1,
-          backgroundColor: theme.border,
-          width: '80%',
-        }}
-      />
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 6 }}>
+      <View style={{ flex: 1, height: 1, backgroundColor: tk.ink, opacity: 0.25 }} />
+      {label && (
+        <Text
+          style={{
+            fontFamily: 'JetBrainsMono_400Regular',
+            fontSize: 10,
+            color: tk.inkSoft,
+            letterSpacing: 1.5,
+            textTransform: 'uppercase',
+          }}
+        >
+          {label}
+        </Text>
+      )}
+      <View style={{ flex: 1, height: 1, backgroundColor: tk.ink, opacity: 0.25 }} />
     </View>
   );
 }
