@@ -27,7 +27,7 @@ export default function SetupScreen() {
   const handleStartGame = () => {
     if (hasSelectedCategories) {
       dispatch({ type: 'START_GAME' });
-      router.push('/games/play');
+      router.push('./play');
     }
   };
 

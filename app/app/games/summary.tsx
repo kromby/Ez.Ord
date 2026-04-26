@@ -16,12 +16,12 @@ export default function SummaryScreen() {
 
   const handlePlayAgain = () => {
     dispatch({ type: 'PLAY_AGAIN' });
-    router.push('/games/play');
+    router.push('./play');
   };
 
   const handleGoToMenu = () => {
     dispatch({ type: 'GO_TO_MENU' });
-    router.push('/');
+    router.push('../');
   };
 
   return (

@@ -1,9 +1,11 @@
 // Word list with categories and metadata
 
+export type Category = 'nafn' | 'sagn' | 'lys' | 'orne';
+
 interface Word {
   id: string;
   word: string;
-  category: string;
+  category: Category;
 }
 
 const CATEGORIES = [

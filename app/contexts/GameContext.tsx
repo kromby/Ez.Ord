@@ -1,10 +1,10 @@
 import React, { createContext, useReducer, ReactNode } from 'react';
 
-import { WORDS } from '../constants/words';
+import { WORDS, type Category } from '../constants/words';
 
 // Type definitions
+export type { Category };
 export type GameType = 'teikna' | 'utskyra' | 'leika';
-export type Category = 'nafn' | 'sagn' | 'lys' | 'orne';
 export type Rating = 'easy' | 'medium' | 'hard' | 'skipped';
 export type Route = 'menu' | 'game' | 'review';
 

@@ -16,12 +16,12 @@ export default function PlayScreen() {
 
   const handleGoToReview = () => {
     dispatch({ type: 'GO_TO_REVIEW' });
-    router.push('/games/review');
+    router.push('./review');
   };
 
   const handleSkip = () => {
-    dispatch({ type: 'GO_TO_REVIEW' });
-    router.push('/games/review');
+    dispatch({ type: 'SET_RATING', payload: 'skipped' });
+    router.push('./review');
   };
 
   if (!currentWord) {

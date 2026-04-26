@@ -25,9 +25,9 @@ export default function ReviewScreen() {
 
       // Navigate to summary if we've reached the end, otherwise go to play
       if (state.wordIndex + 1 >= WORDS.length) {
-        router.push('/games/summary');
+        router.push('./summary');
       } else {
-        router.push('/games/play');
+        router.push('./play');
       }
     }, 200);
   };
@@ -39,9 +39,9 @@ export default function ReviewScreen() {
 
       // Navigate to summary if we've reached the end, otherwise go to play
       if (state.wordIndex + 1 >= WORDS.length) {
-        router.push('/games/summary');
+        router.push('./summary');
       } else {
-        router.push('/games/play');
+        router.push('./play');
       }
     }
   };
