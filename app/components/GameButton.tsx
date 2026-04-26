@@ -47,7 +47,7 @@ export function GameButton({
     >
       <Text
         style={{
-          color: theme.bg,
+          color: '#FFFFFF',
           fontSize: 16,
           fontWeight: '600',
           fontFamily: 'FamiljenGrotesk_700Bold',

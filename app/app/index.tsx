@@ -1,11 +1,15 @@
-import { View, Image, Button, StyleSheet } from "react-native";
+import { View, Image, StyleSheet } from "react-native";
 
 import { HelloWave } from "@/components/HelloWave";
 import ParallaxScrollView from "@/components/ParallaxScrollView";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
+import { GameButton } from "@/components/GameButton";
+import { getTheme } from "@/constants/gameTokens";
 
 export default function Index() {
+  const theme = getTheme('fjord');
+
   return (
     <ParallaxScrollView
       headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
@@ -15,21 +19,21 @@ export default function Index() {
         />
       }
     >
-      <ThemedText type="title">Byrja nýjan leik</ThemedText>     
+      <ThemedText type="title">Byrja nýjan leik</ThemedText>
       <ThemedView style={styles.stepContainer}>
         <HelloWave />
-      </ThemedView>       
-      <ThemedView style={styles.stepContainer}>
-      <Button title="Teikna" onPress={() => {}} />      
       </ThemedView>
       <ThemedView style={styles.stepContainer}>
-      <Button title="Leika" onPress={() => {}} />      
+        <GameButton label="TEIKNA" onPress={() => {}} theme={theme} />
       </ThemedView>
       <ThemedView style={styles.stepContainer}>
-      <Button title="Útskýra" onPress={() => {}} />      
+        <GameButton label="LEIKA" onPress={() => {}} theme={theme} />
       </ThemedView>
       <ThemedView style={styles.stepContainer}>
-      <Button title="Annað" onPress={() => {}} />      
+        <GameButton label="ÚTSKÝRA" onPress={() => {}} theme={theme} />
+      </ThemedView>
+      <ThemedView style={styles.stepContainer}>
+        <GameButton label="ANNAÐ" onPress={() => {}} theme={theme} />
       </ThemedView>
     </ParallaxScrollView>
   );
