@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="is">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Orð — Saga prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; background: #1a1a1c; font-family: 'Familjen Grotesk', system-ui, sans-serif; overflow: hidden; }
+    *, *::before, *::after { box-sizing: border-box; }
+    @keyframes sagaFade {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes sagaSlide {
+      from { opacity: 0; transform: translateX(20px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    .saga-stage {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    .saga-bg {
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse at 30% 20%, rgba(31, 107, 102, 0.18), transparent 60%),
+        radial-gradient(ellipse at 70% 80%, rgba(192, 138, 26, 0.14), transparent 55%),
+        #15201f;
+    }
+    .saga-bg::before {
+      content: ''; position: absolute; inset: 0;
+      background-image:
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.02) 0 1px, transparent 1px 60px),
+        repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0 1px, transparent 1px 60px);
+    }
+  </style>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div class="saga-bg"></div>
+  <div id="root"></div>
+
+  <script type="text/babel" src="ios-frame.jsx"></script>
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+  <script type="text/babel" src="saga-proto/atoms.jsx"></script>
+  <script type="text/babel" src="saga-proto/setup.jsx"></script>
+  <script type="text/babel" src="saga-proto/play.jsx"></script>
+  <script type="text/babel" src="saga-proto/review.jsx"></script>
+  <script type="text/babel" src="saga-proto/summary.jsx"></script>
+
+  <script type="text/babel">
+    const { useReducer, useState, useEffect, useMemo } = React;
+
+    const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+      "palette": "parchment",
+      "serifWeight": "regular",
+      "runeIntensity": 0.85,
+      "showRunes": true
+    }/*EDITMODE-END*/;
+
+    const INITIAL_STATE = {
+      route: 'setup',
+      game: 'utskyra',
+      cats: { nafn: true, sagn: true, lys: true, orne: false },
+      idx: 0,
+      played: [],
+      rating: null,
+      score: 0,
+    };
+
+    function reducer(s, a) {
+      switch (a.type) {
+        case 'setGame':    return { ...s, game: a.id };
+        case 'toggleCat':  return { ...s, cats: { ...s.cats, [a.id]: !s.cats[a.id] } };
+        case 'start':      return { ...s, route: 'play', idx: 0, played: [], rating: null, score: 0 };
+        case 'review':     return { ...s, route: 'review', rating: null };
+        case 'rate':       return { ...s, rating: a.rating };
+        case 'next': {
+          const w = WORDS[s.idx % WORDS.length];
+          const points = s.rating === 'easy' ? 10 : s.rating === 'medium' ? 20 : 30;
+          const played = [...s.played, { ...w, rating: s.rating }];
+          const nextIdx = s.idx + 1;
+          if (nextIdx >= WORDS.length) return { ...s, route: 'summary', played, score: s.score + points };
+          return { ...s, route: 'play', idx: nextIdx, played, rating: null, score: s.score + points };
+        }
+        case 'skip': {
+          const w = WORDS[s.idx % WORDS.length];
+          const played = [...s.played, { ...w, rating: 'skipped' }];
+          const nextIdx = s.idx + 1;
+          if (nextIdx >= WORDS.length) return { ...s, route: 'summary', played };
+          return { ...s, idx: nextIdx, played, rating: null };
+        }
+        case 'skipRated': {
+          const w = WORDS[s.idx % WORDS.length];
+          const played = [...s.played, { ...w, rating: 'skipped' }];
+          const nextIdx = s.idx + 1;
+          if (nextIdx >= WORDS.length) return { ...s, route: 'summary', played };
+          return { ...s, route: 'play', idx: nextIdx, played, rating: null };
+        }
+        case 'back':       return { ...s, route: 'play' };
+        case 'end': {
+          // pad remaining words as skipped
+          const remaining = WORDS.slice(s.idx).map((w) => ({ ...w, rating: 'skipped' }));
+          return { ...s, route: 'summary', played: [...s.played, ...remaining] };
+        }
+        case 'playAgain':  return { ...INITIAL_STATE, game: s.game, cats: s.cats, route: 'play' };
+        case 'menu':       return { ...INITIAL_STATE, game: s.game, cats: s.cats };
+        default:           return s;
+      }
+    }
+
+    function App() {
+      const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+      const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
+      const tk = useMemo(() => {
+        const base = makeTokens(tweaks);
+        return { ...base, runeIntensity: tweaks.showRunes ? base.runeIntensity : 0 };
+      }, [tweaks]);
+
+      const Screen = {
+        setup:   SetupScreen,
+        play:    PlayScreen,
+        review:  ReviewScreen,
+        summary: SummaryScreen,
+      }[state.route];
+
+      return (
+        <div className="saga-stage" data-screen-label={`saga · ${state.route}`}>
+          <IOSDevice width={402} height={874} dark={tweaks.palette === 'midnight'}>
+            <div style={{ width: '100%', height: '100%', background: tk.bg, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+              <IOSStatusBar dark={tweaks.palette === 'midnight'} />
+              <div key={state.route} style={{ flex: 1, overflowY: 'auto', minHeight: 0, animation: 'sagaSlide 280ms ease' }}>
+                <Screen tk={tk} state={state} dispatch={dispatch} />
+              </div>
+            </div>
+          </IOSDevice>
+
+          <TweaksPanel title="Tweaks">
+            <TweakSection label="Theme" />
+            <TweakSelect
+              label="Palette"
+              value={tweaks.palette}
+              options={[
+                { value: 'parchment', label: 'Parchment (default)' },
+                { value: 'midnight',  label: 'Midnight (dark)' },
+                { value: 'fjord',     label: 'Fjord (cool)' },
+              ]}
+              onChange={(v) => setTweak('palette', v)}
+            />
+            <TweakRadio
+              label="Display weight"
+              value={tweaks.serifWeight}
+              options={['regular', 'heavy']}
+              onChange={(v) => setTweak('serifWeight', v)}
+            />
+            <TweakSection label="Runes" />
+            <TweakToggle
+              label="Show rune strip"
+              value={tweaks.showRunes}
+              onChange={(v) => setTweak('showRunes', v)}
+            />
+            <TweakSlider
+              label="Rune intensity"
+              value={tweaks.runeIntensity}
+              min={0.2} max={1} step={0.05}
+              onChange={(v) => setTweak('runeIntensity', v)}
+            />
+            <TweakSection label="Jump to screen" />
+            <TweakRadio
+              label="Route"
+              value={state.route}
+              options={['setup', 'play', 'review', 'summary']}
+              onChange={(v) => dispatch({ type: '__route', route: v })}
+            />
+          </TweaksPanel>
+        </div>
+      );
+    }
+
+    // Allow Tweaks to jump routes (cheap dev shortcut). Augment reducer:
+    const _origReducer = reducer;
+    // (Inline patched dispatch — stash on window so the radio can call it.)
+
+    // Re-implement App's dispatch to handle __route — simplest path: monkey-patch
+    // by defining a wrapper reducer.
+    function reducer2(s, a) {
+      if (a.type === '__route') {
+        if (a.route === 'play' || a.route === 'review') {
+          // make sure we have an active game state
+          return { ..._origReducer(s, { type: 'start' }), route: a.route };
+        }
+        if (a.route === 'summary') {
+          // synth a played list for preview
+          const played = WORDS.map((w, i) => ({ ...w, rating: ['easy','medium','easy','hard','skipped','hard'][i] }));
+          return { ...s, route: 'summary', played, score: 110 };
+        }
+        return { ...s, route: a.route };
+      }
+      return _origReducer(s, a);
+    }
+
+    function AppWrapped() {
+      const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+      const [state, dispatch] = useReducer(reducer2, INITIAL_STATE);
+      const tk = useMemo(() => {
+        const base = makeTokens(tweaks);
+        return { ...base, runeIntensity: tweaks.showRunes ? base.runeIntensity : 0 };
+      }, [tweaks]);
+
+      const Screen = {
+        setup:   SetupScreen,
+        play:    PlayScreen,
+        review:  ReviewScreen,
+        summary: SummaryScreen,
+      }[state.route];
+
+      const dark = tweaks.palette === 'midnight';
+
+      return (
+        <div className="saga-stage" data-screen-label={`saga · ${state.route}`}>
+          <IOSDevice width={402} height={874} dark={dark}>
+            <div style={{ width: '100%', height: '100%', background: tk.bg, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+              <IOSStatusBar dark={dark} />
+              <div key={state.route} style={{ flex: 1, overflowY: 'auto', minHeight: 0, animation: 'sagaSlide 280ms ease' }}>
+                <Screen tk={tk} state={state} dispatch={dispatch} />
+              </div>
+            </div>
+          </IOSDevice>
+
+          <TweaksPanel title="Tweaks">
+            <TweakSection label="Theme" />
+            <TweakSelect
+              label="Palette"
+              value={tweaks.palette}
+              options={[
+                { value: 'parchment', label: 'Parchment (default)' },
+                { value: 'midnight',  label: 'Midnight (dark)' },
+                { value: 'fjord',     label: 'Fjord (cool)' },
+              ]}
+              onChange={(v) => setTweak('palette', v)}
+            />
+            <TweakRadio
+              label="Display weight"
+              value={tweaks.serifWeight}
+              options={['regular', 'heavy']}
+              onChange={(v) => setTweak('serifWeight', v)}
+            />
+            <TweakSection label="Runes" />
+            <TweakToggle
+              label="Show rune strip"
+              value={tweaks.showRunes}
+              onChange={(v) => setTweak('showRunes', v)}
+            />
+            <TweakSlider
+              label="Rune intensity"
+              value={tweaks.runeIntensity}
+              min={0.2} max={1} step={0.05}
+              onChange={(v) => setTweak('runeIntensity', v)}
+            />
+            <TweakSection label="Jump to screen" />
+            <TweakRadio
+              label="Route"
+              value={state.route}
+              options={['setup', 'play', 'review', 'summary']}
+              onChange={(v) => dispatch({ type: '__route', route: v })}
+            />
+          </TweaksPanel>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<AppWrapped />);
+  </script>
+</body>
+</html>

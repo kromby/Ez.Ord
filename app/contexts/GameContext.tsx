@@ -1,4 +1,5 @@
 import React, { createContext, useReducer, ReactNode } from 'react';
+
 import { WORDS } from '../constants/words';
 
 // Type definitions
@@ -91,6 +92,10 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       };
 
     case 'NEXT_WORD': {
+      if (state.wordIndex >= WORDS.length) {
+        return state; // No more words available
+      }
+
       const currentWord = WORDS[state.wordIndex];
       const newPlayedWord: PlayedWord = {
         id: currentWord.id,
@@ -142,10 +147,15 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
 };
 
 // Context
-export const GameContext = createContext<{
+interface GameContextType {
   state: GameState;
   dispatch: React.Dispatch<GameAction>;
-} | null>(null);
+}
+
+export const GameContext = createContext<GameContextType>({
+  state: INITIAL_STATE,
+  dispatch: () => {},
+});
 
 // Provider component
 export interface GameProviderProps {
