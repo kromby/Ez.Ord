@@ -36,6 +36,7 @@ export default function RootLayout() {
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <Stack>
         <Stack.Screen name="index" />
+        <Stack.Screen name="games" options={{ headerShown: false }} />
       </Stack>
     </ThemeProvider>
   );
