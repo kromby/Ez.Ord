@@ -1,112 +1,135 @@
-import { useRouter } from 'expo-router';
+import React from 'react';
 import { View, ScrollView, Text } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useGameState } from '@/hooks/useGameState';
 import { GAMES } from '@/constants/games';
 import { CATEGORIES } from '@/constants/words';
-import { COLORS, TYPOGRAPHY, SPACING } from '@/constants/gameTokens';
-import { GameButton } from '@/components/GameButton';
-import { CategoryToggle } from '@/components/CategoryToggle';
+import { COLORS } from '@/constants/gameTokens';
+import { Stone } from '@/components/Stone';
+import { RuneStrip } from '@/components/RuneStrip';
 import { Divider } from '@/components/Divider';
 
 export default function SetupScreen() {
   const router = useRouter();
   const { state, dispatch } = useGameState();
-  const theme = COLORS.parchment;
-
-  // Check if at least one category is selected
-  const hasSelectedCategories = Object.values(state.categories).some((v) => v);
+  const tk = COLORS.parchment; // TODO: support theme switching
+  const selectedCatsCount = Object.values(state.categories).filter(Boolean).length;
 
   const handleGameSelect = (gameId: string) => {
     dispatch({ type: 'SET_GAME', payload: gameId as 'teikna' | 'utskyra' | 'leika' });
   };
 
-  const handleCategoryToggle = (categoryId: string) => {
-    dispatch({ type: 'TOGGLE_CATEGORY', payload: categoryId as 'nafn' | 'sagn' | 'lys' | 'orne' });
+  const handleCategoryToggle = (catId: string) => {
+    dispatch({ type: 'TOGGLE_CATEGORY', payload: catId as 'nafn' | 'sagn' | 'lys' | 'orne' });
   };
 
-  const handleStartGame = () => {
-    if (hasSelectedCategories) {
+  const handleStart = () => {
+    if (selectedCatsCount > 0) {
       dispatch({ type: 'START_GAME' });
       router.push('./play');
     }
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.bg }}>
-      <ScrollView
-        style={{ flex: 1, paddingHorizontal: SPACING.lg }}
-        contentContainerStyle={{ paddingVertical: SPACING.xl }}
-      >
-        {/* Headline */}
-        <Text
-          style={{
-            ...TYPOGRAPHY.headline,
-            color: theme.text,
-            marginBottom: SPACING.xl,
-          }}
-        >
-          Orð
+    <View style={{ flex: 1, backgroundColor: tk.bg }}>
+      {/* Header */}
+      <View style={{ paddingHorizontal: 22, paddingTop: 14, paddingBottom: 4, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 10, letterSpacing: 1.6, color: tk.inkSoft, textTransform: 'uppercase' }}>
+          Orð · Kafli I
+        </Text>
+        <RuneStrip tk={tk} />
+      </View>
+
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 22, paddingVertical: 28 }}>
+        {/* Title */}
+        <Text style={{ fontFamily: 'DMSerifDisplay_400Regular', fontSize: 44, lineHeight: 42, marginTop: 20, marginBottom: 4, color: tk.ink, fontWeight: '700' }}>
+          Veldu þinn
+        </Text>
+        <Text style={{ fontFamily: 'DMSerifDisplay_400Regular', fontSize: 44, lineHeight: 42, color: tk.teal, fontStyle: 'italic', fontWeight: '700' }}>
+          orðaleik
         </Text>
 
         {/* Games Section */}
-        <Divider title="LEIKIR" theme={theme} />
-        <View style={{ marginBottom: SPACING.xl }}>
-          {GAMES.map((game) => (
-            <View key={game.id} style={{ marginBottom: SPACING.md }}>
-              <GameButton
-                label={game.label}
-                onPress={() => handleGameSelect(game.id)}
-                theme={theme}
-                variant={state.game === game.id ? 'primary' : 'secondary'}
-              />
-            </View>
-          ))}
+        <Divider tk={tk} label="leikir" />
+        <View style={{ marginTop: 14, marginBottom: 24, gap: 10 }}>
+          {GAMES.map((game) => {
+            const isSelected = state.game === game.id;
+            return (
+              <Stone
+                key={game.id}
+                tk={tk}
+                color={isSelected ? tk.teal : tk.card}
+                fg={isSelected ? tk.bg : tk.ink}
+                onClick={() => handleGameSelect(game.id)}
+                style={{ paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 14 }}
+              >
+                <View style={{ width: 44, height: 44, borderRadius: 10, backgroundColor: isSelected ? tk.ochreLight : tk.bgDeep, borderWidth: 1.5, borderColor: tk.ink, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 24 }}>{game.icon}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: 'DMSerifDisplay_400Regular', fontSize: 22, lineHeight: 22, fontWeight: '700', fontStyle: isSelected ? 'italic' : 'normal', color: isSelected ? tk.bg : tk.ink }}>
+                    {game.label}
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 14, fontWeight: '600', opacity: isSelected ? 1 : 0.4, color: isSelected ? tk.bg : tk.ink }}>
+                  {isSelected ? '◆' : '◇'}
+                </Text>
+              </Stone>
+            );
+          })}
         </View>
 
         {/* Categories Section */}
-        <Divider title="FLOKKAR" theme={theme} />
-        <View style={{ marginBottom: SPACING.xl }}>
-          {CATEGORIES.map((category) => (
-            <CategoryToggle
-              key={category.id}
-              label={category.label}
-              checked={state.categories[category.id as 'nafn' | 'sagn' | 'lys' | 'orne']}
-              onPress={() => handleCategoryToggle(category.id)}
-              theme={theme}
-            />
-          ))}
+        <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 10, color: tk.inkSoft, letterSpacing: 1.5, marginBottom: 10, textTransform: 'uppercase' }}>
+          · Orðaflokkar · {selectedCatsCount}/4
+        </Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 28 }}>
+          {CATEGORIES.map((cat) => {
+            const isOn = state.categories[cat.id as 'nafn' | 'sagn' | 'lys' | 'orne'];
+            return (
+              <Stone
+                key={cat.id}
+                tk={tk}
+                color={isOn ? tk.ochreLight : tk.card}
+                fg={isOn ? tk.ink : tk.ink}
+                onClick={() => handleCategoryToggle(cat.id)}
+                radius={999}
+                style={{ paddingVertical: 8, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+              >
+                <Text style={{ fontSize: 12, color: isOn ? tk.ink : tk.ink }}>
+                  {isOn ? '✦' : '◌'}
+                </Text>
+                <Text style={{ fontFamily: 'DMSerifDisplay_400Regular', fontSize: 16, fontWeight: '700', fontStyle: isOn ? 'italic' : 'normal', color: tk.ink }}>
+                  {cat.label}
+                </Text>
+                <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 10, opacity: 0.6, color: tk.ink }}>
+                  {cat.count}
+                </Text>
+              </Stone>
+            );
+          })}
         </View>
       </ScrollView>
 
-      {/* Sticky Button Section */}
-      <View
-        style={{
-          paddingHorizontal: SPACING.lg,
-          paddingBottom: SPACING.xl,
-          backgroundColor: theme.bg,
-        }}
-      >
-        <GameButton
-          label="Hefjum leik →"
-          onPress={handleStartGame}
-          theme={theme}
-          variant="primary"
-          disabled={!hasSelectedCategories}
-        />
-
-        {!hasSelectedCategories && (
-          <Text
-            style={{
-              color: theme.textLight,
-              fontSize: 14,
-              fontFamily: 'FamiljenGrotesk_400Regular',
-              marginTop: SPACING.md,
-              textAlign: 'center',
-            }}
-          >
-            Veldu a.m.k. einn flokk
+      {/* Start Button */}
+      <View style={{ paddingHorizontal: 22, paddingBottom: 28, paddingTop: 14, backgroundColor: tk.bg }}>
+        <Stone
+          tk={tk}
+          color={selectedCatsCount > 0 ? tk.teal : tk.bgDeep}
+          fg={selectedCatsCount > 0 ? tk.bg : tk.inkSoft}
+          depth={selectedCatsCount > 0 ? 4 : 1}
+          onClick={selectedCatsCount > 0 ? handleStart : undefined}
+          style={{ paddingVertical: 16, alignItems: 'center', opacity: selectedCatsCount > 0 ? 1 : 0.6 }}
+        >
+          <Text style={{ fontFamily: 'DMSerifDisplay_400Regular', fontSize: 22, fontWeight: '700', fontStyle: 'italic', color: selectedCatsCount > 0 ? tk.bg : tk.inkSoft }}>
+            Hefjum leik →
           </Text>
-        )}
+          {selectedCatsCount === 0 && (
+            <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 9, opacity: 0.7, letterSpacing: 1.5, marginTop: 2, textTransform: 'uppercase', color: tk.inkSoft }}>
+              Veldu a.m.k. einn flokk
+            </Text>
+          )}
+        </Stone>
       </View>
     </View>
   );
