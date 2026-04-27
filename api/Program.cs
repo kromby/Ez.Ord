@@ -1,4 +1,5 @@
 using Azure.Data.Tables;
+using EzOrd.Services;
 
 var builder = WebApplicationBuilder.CreateBuilder(args);
 
@@ -15,6 +16,12 @@ builder.Services.AddCors(options =>
 var connectionString = builder.Configuration.GetConnectionString("AzureTableStorage")
     ?? "UseDevelopmentStorage=true"; // Local Azure Storage Emulator for dev
 builder.Services.AddSingleton(new TableServiceClient(connectionString));
+
+// Register storage service
+builder.Services.AddSingleton<StorageService>();
+
+// Add hosted service to initialize tables
+builder.Services.AddHostedService<StorageInitializerService>();
 
 var app = builder.Build();
 
