@@ -20,6 +20,9 @@ builder.Services.AddSingleton(new TableServiceClient(connectionString));
 // Register storage service
 builder.Services.AddSingleton<StorageService>();
 
+// Register game service
+builder.Services.AddScoped<GameService>();
+
 // Add hosted service to initialize tables
 builder.Services.AddHostedService<StorageInitializerService>();
 
