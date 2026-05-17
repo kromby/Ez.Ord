@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using EzOrd.Models;
 using EzOrd.Services;
 
 namespace EzOrd.Controllers
 {
+    [EnableCors("AllowAll")]
     [ApiController]
     [Route("api/categories")]
     public class CategoriesController : ControllerBase

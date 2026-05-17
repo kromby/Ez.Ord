@@ -5,9 +5,9 @@ namespace EzOrd.Services
 {
     public class GameService
     {
-        private readonly StorageService _storage;
+        private readonly IStorageService _storage;
 
-        public GameService(StorageService storage)
+        public GameService(IStorageService storage)
         {
             _storage = storage;
         }

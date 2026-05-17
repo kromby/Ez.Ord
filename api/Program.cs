@@ -1,41 +1,29 @@
 using Azure.Data.Tables;
 using EzOrd.Services;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Builder;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = FunctionsApplication.CreateBuilder(args);
 
-// Add services
+builder.ConfigureFunctionsWebApplication();
+
+builder.Services.AddApplicationInsightsTelemetryWorkerService();
+builder.Services.ConfigureFunctionsApplicationInsights();
+
 builder.Services.AddControllers();
-builder.Services.AddSwaggerGen();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", b => b.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 });
 
-// Register Azure Table Storage client
 var connectionString = builder.Configuration.GetConnectionString("AzureTableStorage")
-    ?? "UseDevelopmentStorage=true"; // Local Azure Storage Emulator for dev
+    ?? "UseDevelopmentStorage=true";
 builder.Services.AddSingleton(new TableServiceClient(connectionString));
-
-// Register storage service
-builder.Services.AddSingleton<StorageService>();
-
-// Register game service
+builder.Services.AddSingleton<IStorageService, StorageService>();
 builder.Services.AddScoped<GameService>();
-
-// Add hosted service to initialize tables
 builder.Services.AddHostedService<StorageInitializerService>();
 
-var app = builder.Build();
-
-// Configure middleware
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
-app.UseCors("AllowAll");
-app.UseRouting();
-app.MapControllers();
-
-app.Run();
+builder.Build().Run();
