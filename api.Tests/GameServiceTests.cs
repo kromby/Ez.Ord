@@ -28,14 +28,16 @@ namespace EzOrd.Tests
             };
 
             // Act
+            var before = DateTime.UtcNow;
             var result = await _gameService.StartGameAsync(request);
+            var after = DateTime.UtcNow;
 
             // Assert
             Assert.NotNull(result);
             Assert.NotEmpty(result.GameId);
             Assert.Equal(request.GameType, result.GameType);
             Assert.Equal(request.Categories, result.Categories);
-            Assert.True(result.StartedAt <= DateTime.UtcNow);
+            Assert.True(result.StartedAt >= before && result.StartedAt <= after);
         }
 
         [Fact]
@@ -136,6 +138,9 @@ namespace EzOrd.Tests
             Assert.Equal("hestur", result.Word);
             Assert.Equal("nafn", result.Category);
             Assert.Equal("word1", result.WordId);
+
+            _mockStorageService.Verify(s => s.InsertGameWordAsync(It.IsAny<GameWordEntity>()), Times.Once);
+            _mockStorageService.Verify(s => s.UpdateWordUsageAsync(It.IsAny<WordEntity>()), Times.Once);
         }
 
         [Fact]
@@ -268,13 +273,15 @@ namespace EzOrd.Tests
                 .ReturnsAsync(5);
 
             // Act
+            var before = DateTime.UtcNow;
             var result = await _gameService.EndGameAsync(gameId);
+            var after = DateTime.UtcNow;
 
             // Assert
             Assert.NotNull(result);
             Assert.Equal(gameId, result.GameId);
             Assert.Equal(5, result.WordCount);
-            Assert.True(result.EndedAt <= DateTime.UtcNow);
+            Assert.True(result.EndedAt >= before && result.EndedAt <= after);
         }
 
         [Fact]
@@ -361,6 +368,34 @@ namespace EzOrd.Tests
             Assert.Single(result.Words);
             Assert.Equal("hestur", result.Words[0].Word);
             Assert.Equal("easy", result.Words[0].Rating);
+        }
+
+        [Fact]
+        public async Task EndGameAsync_ShouldThrowWhenGameNotFound()
+        {
+            // Arrange
+            var gameId = "nonexistent";
+            _mockStorageService
+                .Setup(s => s.GetGameAsync(gameId))
+                .ReturnsAsync((GameEntity?)null);
+
+            // Act & Assert
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => _gameService.EndGameAsync(gameId));
+        }
+
+        [Fact]
+        public async Task GetGameDetailsAsync_ShouldThrowWhenGameNotFound()
+        {
+            // Arrange
+            var gameId = "nonexistent";
+            _mockStorageService
+                .Setup(s => s.GetGameAsync(gameId))
+                .ReturnsAsync((GameEntity?)null);
+
+            // Act & Assert
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => _gameService.GetGameDetailsAsync(gameId));
         }
     }
 }
