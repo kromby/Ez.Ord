@@ -13,7 +13,7 @@ import {
 class GameAPI {
   private client: AxiosInstance;
 
-  constructor(baseURL: string = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:5001') {
+  constructor(baseURL: string = process.env.EXPO_PUBLIC_API_BASE_URL || '') {
     this.client = axios.create({
       baseURL,
       timeout: 10000,

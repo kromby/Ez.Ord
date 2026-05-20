@@ -23,10 +23,10 @@ namespace EzOrd.Services
             _wordRatingsTable = _tableServiceClient.GetTableClient("WordRatings");
             _wordsTable = _tableServiceClient.GetTableClient("Words");
 
-            // Create tables if they don't exist
             await _gamesTable.CreateIfNotExistsAsync();
             await _gameWordsTable.CreateIfNotExistsAsync();
             await _wordRatingsTable.CreateIfNotExistsAsync();
+            await _wordsTable.CreateIfNotExistsAsync();
         }
 
         // Games
@@ -68,7 +68,7 @@ namespace EzOrd.Services
             {
                 results.Add(item);
             }
-            return results.OrderBy(w => int.Parse(w.RowKey)).ToList();
+            return results.OrderBy(w => int.TryParse(w.RowKey, out var seq) ? seq : int.MaxValue).ToList();
         }
 
         public async Task<int> GetGameWordCountAsync(string gameId)

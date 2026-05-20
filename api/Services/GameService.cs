@@ -128,8 +128,11 @@ namespace EzOrd.Services
             if (game == null)
                 throw new InvalidOperationException("Game not found");
 
-            game.EndedAt = DateTime.UtcNow;
-            await _storage.UpdateGameAsync(game);
+            if (!game.EndedAt.HasValue)
+            {
+                game.EndedAt = DateTime.UtcNow;
+                await _storage.UpdateGameAsync(game);
+            }
 
             var wordCount = await _storage.GetGameWordCountAsync(gameId);
 
@@ -157,7 +160,7 @@ namespace EzOrd.Services
                 var rating = await _storage.GetRatingAsync(gw.WordId, gameId);
                 wordDetails.Add(new GameWordDetailsDto
                 {
-                    Sequence = int.Parse(gw.RowKey),
+                    Sequence = int.TryParse(gw.RowKey, out var seq) ? seq : 0,
                     Word = gw.Word,
                     Category = gw.Category,
                     DrawnAt = gw.DrawnAt,
