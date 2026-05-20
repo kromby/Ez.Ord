@@ -2,16 +2,15 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useGameState } from '@/hooks/useGameState';
-import { WORDS } from '@/constants/words';
 import { COLORS } from '@/constants/gameTokens';
 import { Stone } from '@/components/Stone';
 import { RuneStrip } from '@/components/RuneStrip';
 
 export default function ReviewScreen() {
   const router = useRouter();
-  const { state, dispatch } = useGameState();
+  const { state, rateWordAsync, endGameAsync } = useGameState();
   const tk = COLORS.parchment;
-  const word = WORDS[state.wordIndex % WORDS.length];
+  const word = state.currentWord;
   const [confirmEnd, setConfirmEnd] = useState(false);
 
   const ratings = [
@@ -20,15 +19,19 @@ export default function ReviewScreen() {
     { id: 'hard' as const, label: 'Þungt', color: tk.rust, glyph: '···' },
   ];
 
-  const handleRate = (rating: 'easy' | 'medium' | 'hard') => {
-    dispatch({ type: 'SET_RATING', payload: rating });
+  const handleRate = async (rating: 'easy' | 'medium' | 'hard') => {
+    await rateWordAsync(rating);
     setTimeout(() => {
-      dispatch({ type: 'NEXT_WORD' });
       router.push('./play');
     }, 220);
   };
 
-  const fontSize = word.word.length > 9 ? 54 : 66;
+  const handleEnd = async () => {
+    await endGameAsync();
+    router.push('./summary');
+  };
+
+  const fontSize = word ? (word.word.length > 9 ? 54 : 66) : 66;
 
   return (
     <View style={{ flex: 1, backgroundColor: tk.bg }}>
@@ -44,10 +47,7 @@ export default function ReviewScreen() {
             ← Aftur
           </Text>
           <Text
-            onPress={() => {
-              dispatch({ type: 'END_GAME' });
-              router.push('./summary');
-            }}
+            onPress={handleEnd}
             style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 10, color: tk.rust, letterSpacing: 1.4, textTransform: 'uppercase' }}
           >
             Hætta
@@ -63,10 +63,10 @@ export default function ReviewScreen() {
             Orðið var
           </Text>
           <Text style={{ fontFamily: 'DMSerifDisplay_400Regular', fontSize, lineHeight: fontSize * 1.05, fontWeight: '700', color: tk.ink, letterSpacing: -1.5, marginTop: 6 }}>
-            {word.word}
+            {word?.word ?? '—'}
           </Text>
           <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 11, color: tk.inkSoft, marginTop: 4 }}>
-            {word.category}
+            {word?.category ?? ''}
           </Text>
         </View>
 

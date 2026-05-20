@@ -1,9 +1,9 @@
-import React, { useEffect } from 'react';
-import { View, ScrollView, Text } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, ScrollView, Text, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useGameState } from '@/hooks/useGameState';
 import { GAMES } from '@/constants/games';
-import { CATEGORIES } from '@/constants/words';
+import { CATEGORIES, type Category } from '@/constants/words';
 import { COLORS } from '@/constants/gameTokens';
 import { Stone } from '@/components/Stone';
 import { RuneStrip } from '@/components/RuneStrip';
@@ -12,13 +12,22 @@ import { Divider } from '@/components/Divider';
 export default function SetupScreen() {
   const router = useRouter();
   const { game: gameParam } = useLocalSearchParams<{ game: string }>();
-  const { state, dispatch } = useGameState();
+  const { state, dispatch, startGameAsync } = useGameState();
+  const [isStarting, setIsStarting] = useState(false);
 
   useEffect(() => {
     if (gameParam && GAMES.some(g => g.id === gameParam)) {
       dispatch({ type: 'SET_GAME', payload: gameParam as 'teikna' | 'utskyra' | 'leika' });
     }
   }, [gameParam]);
+
+  useEffect(() => {
+    if (isStarting && state.gameId && !state.isLoading && !state.error) {
+      setIsStarting(false);
+      router.push('./play');
+    }
+  }, [isStarting, state.gameId, state.isLoading, state.error]);
+
   const tk = COLORS.parchment; // TODO: support theme switching
   const selectedCatsCount = Object.values(state.categories).filter(Boolean).length;
 
@@ -30,11 +39,13 @@ export default function SetupScreen() {
     dispatch({ type: 'TOGGLE_CATEGORY', payload: catId as 'nafn' | 'sagn' | 'lys' | 'orne' });
   };
 
-  const handleStart = () => {
-    if (selectedCatsCount > 0) {
-      dispatch({ type: 'START_GAME' });
-      router.push('./play');
-    }
+  const handleStart = async () => {
+    if (selectedCatsCount === 0 || !state.game) return;
+    const selectedCategories = (Object.keys(state.categories) as Category[]).filter(
+      cat => state.categories[cat]
+    );
+    setIsStarting(true);
+    await startGameAsync(state.game, selectedCategories);
   };
 
   return (
@@ -120,18 +131,27 @@ export default function SetupScreen() {
 
       {/* Start Button */}
       <View style={{ paddingHorizontal: 22, paddingBottom: 28, paddingTop: 14, backgroundColor: tk.bg }}>
+        {state.error && (
+          <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 11, color: tk.rust, marginBottom: 8, textAlign: 'center' }}>
+            {state.error}
+          </Text>
+        )}
         <Stone
           tk={tk}
-          color={selectedCatsCount > 0 ? tk.teal : tk.bgDeep}
-          fg={selectedCatsCount > 0 ? tk.bg : tk.inkSoft}
-          depth={selectedCatsCount > 0 ? 4 : 1}
-          onClick={selectedCatsCount > 0 ? handleStart : undefined}
-          style={{ paddingVertical: 16, alignItems: 'center', opacity: selectedCatsCount > 0 ? 1 : 0.6 }}
+          color={selectedCatsCount > 0 && !state.isLoading ? tk.teal : tk.bgDeep}
+          fg={selectedCatsCount > 0 && !state.isLoading ? tk.bg : tk.inkSoft}
+          depth={selectedCatsCount > 0 && !state.isLoading ? 4 : 1}
+          onClick={selectedCatsCount > 0 && !state.isLoading ? handleStart : undefined}
+          style={{ paddingVertical: 16, alignItems: 'center', opacity: selectedCatsCount > 0 && !state.isLoading ? 1 : 0.6 }}
         >
-          <Text style={{ fontFamily: 'DMSerifDisplay_400Regular', fontSize: 22, fontWeight: '700', fontStyle: 'italic', color: selectedCatsCount > 0 ? tk.bg : tk.inkSoft }}>
-            Hefjum leik →
-          </Text>
-          {selectedCatsCount === 0 && (
+          {state.isLoading ? (
+            <ActivityIndicator color={tk.inkSoft} />
+          ) : (
+            <Text style={{ fontFamily: 'DMSerifDisplay_400Regular', fontSize: 22, fontWeight: '700', fontStyle: 'italic', color: selectedCatsCount > 0 ? tk.bg : tk.inkSoft }}>
+              Hefjum leik →
+            </Text>
+          )}
+          {selectedCatsCount === 0 && !state.isLoading && (
             <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 9, opacity: 0.7, letterSpacing: 1.5, marginTop: 2, textTransform: 'uppercase', color: tk.inkSoft }}>
               Veldu a.m.k. einn flokk
             </Text>
