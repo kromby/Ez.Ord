@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useGameState } from '@/hooks/useGameState';
@@ -23,8 +23,16 @@ export default function PlayScreen() {
     router.push('./review');
   };
 
+  const [isSkipping, setIsSkipping] = useState(false);
+
   const handleSkip = async () => {
-    await skipWordAsync();
+    if (isSkipping) return;
+    setIsSkipping(true);
+    try {
+      await skipWordAsync();
+    } finally {
+      setIsSkipping(false);
+    }
   };
 
   if (state.isLoading || !state.currentWord) {

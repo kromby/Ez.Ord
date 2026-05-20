@@ -22,11 +22,16 @@ export default function SetupScreen() {
   }, [gameParam]);
 
   useEffect(() => {
-    if (isStarting && state.gameId && !state.isLoading && !state.error) {
+    if (!isStarting || state.isLoading) return;
+    if (state.error) {
+      setIsStarting(false);
+      return;
+    }
+    if (state.gameId) {
       setIsStarting(false);
       router.push('./play');
     }
-  }, [isStarting, state.gameId, state.isLoading, state.error]);
+  }, [isStarting, state.gameId, state.isLoading, state.error, router]);
 
   const tk = COLORS.parchment; // TODO: support theme switching
   const selectedCatsCount = Object.values(state.categories).filter(Boolean).length;
@@ -40,12 +45,16 @@ export default function SetupScreen() {
   };
 
   const handleStart = async () => {
-    if (selectedCatsCount === 0 || !state.game) return;
+    if (selectedCatsCount === 0 || !state.game || state.isLoading || isStarting) return;
     const selectedCategories = (Object.keys(state.categories) as Category[]).filter(
       cat => state.categories[cat]
     );
     setIsStarting(true);
-    await startGameAsync(state.game, selectedCategories);
+    try {
+      await startGameAsync(state.game, selectedCategories);
+    } catch {
+      setIsStarting(false);
+    }
   };
 
   return (

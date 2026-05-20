@@ -11,7 +11,7 @@ export default function ReviewScreen() {
   const { state, rateWordAsync, endGameAsync } = useGameState();
   const tk = COLORS.parchment;
   const word = state.currentWord;
-  const [confirmEnd, setConfirmEnd] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const ratings = [
     { id: 'easy' as const, label: 'Létt', color: tk.forest, glyph: '·' },
@@ -20,15 +20,26 @@ export default function ReviewScreen() {
   ];
 
   const handleRate = async (rating: 'easy' | 'medium' | 'hard') => {
-    await rateWordAsync(rating);
-    setTimeout(() => {
+    if (!word || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await rateWordAsync(rating);
+      await new Promise((resolve) => setTimeout(resolve, 220));
       router.push('./play');
-    }, 220);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleEnd = async () => {
-    await endGameAsync();
-    router.push('./summary');
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await endGameAsync();
+      router.push('./summary');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const fontSize = word ? (word.word.length > 9 ? 54 : 66) : 66;
