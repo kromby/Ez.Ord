@@ -15,6 +15,12 @@ namespace EzOrd.Services
         // Create a new game session
         public async Task<GameStartResponse> StartGameAsync(GameStartRequest request)
         {
+            if (string.IsNullOrWhiteSpace(request.GameType))
+                throw new ArgumentException("GameType is required.", nameof(request));
+
+            if (request.Categories is null || request.Categories.Count == 0)
+                throw new ArgumentException("At least one category is required.", nameof(request));
+
             var gameId = Guid.NewGuid().ToString();
             var now = DateTime.UtcNow;
 
@@ -63,7 +69,8 @@ namespace EzOrd.Services
             var gameWord = new GameWordEntity
             {
                 PartitionKey = gameId,
-                RowKey = sequence.ToString(),
+                RowKey = Guid.NewGuid().ToString(),
+                Sequence = sequence,
                 WordId = selectedWord.RowKey,
                 Word = selectedWord.Word,
                 Category = selectedWord.Category,
@@ -89,6 +96,8 @@ namespace EzOrd.Services
             var game = await _storage.GetGameAsync(gameId);
             if (game == null)
                 throw new InvalidOperationException("Game not found");
+            if (game.EndedAt.HasValue)
+                throw new InvalidOperationException("Game has already ended");
 
             var rating = new WordRatingEntity
             {
@@ -108,6 +117,8 @@ namespace EzOrd.Services
             var game = await _storage.GetGameAsync(gameId);
             if (game == null)
                 throw new InvalidOperationException("Game not found");
+            if (game.EndedAt.HasValue)
+                throw new InvalidOperationException("Game has already ended");
 
             var rating = new WordRatingEntity
             {
@@ -128,8 +139,11 @@ namespace EzOrd.Services
             if (game == null)
                 throw new InvalidOperationException("Game not found");
 
-            game.EndedAt = DateTime.UtcNow;
-            await _storage.UpdateGameAsync(game);
+            if (!game.EndedAt.HasValue)
+            {
+                game.EndedAt = DateTime.UtcNow;
+                await _storage.UpdateGameAsync(game);
+            }
 
             var wordCount = await _storage.GetGameWordCountAsync(gameId);
 
@@ -157,7 +171,7 @@ namespace EzOrd.Services
                 var rating = await _storage.GetRatingAsync(gw.WordId, gameId);
                 wordDetails.Add(new GameWordDetailsDto
                 {
-                    Sequence = int.Parse(gw.RowKey),
+                    Sequence = gw.Sequence,
                     Word = gw.Word,
                     Category = gw.Category,
                     DrawnAt = gw.DrawnAt,

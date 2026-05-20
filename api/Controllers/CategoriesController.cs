@@ -1,16 +1,18 @@
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using EzOrd.Models;
 using EzOrd.Services;
 
 namespace EzOrd.Controllers
 {
+    [EnableCors("AllowAll")]
     [ApiController]
     [Route("api/categories")]
     public class CategoriesController : ControllerBase
     {
-        private readonly StorageService _storageService;
+        private readonly IStorageService _storageService;
 
-        public CategoriesController(StorageService storageService)
+        public CategoriesController(IStorageService storageService)
         {
             _storageService = storageService;
         }
@@ -33,9 +35,9 @@ namespace EzOrd.Controllers
                     Data = new CategoriesResponse { Categories = categories }
                 });
             }
-            catch (Exception ex)
+            catch
             {
-                return StatusCode(500, new ApiResponse<object> { Success = false, Message = ex.Message });
+                return StatusCode(500, new ApiResponse<object> { Success = false, Message = "An error occurred retrieving categories." });
             }
         }
     }

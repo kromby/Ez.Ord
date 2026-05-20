@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using EzOrd.Models;
 using EzOrd.Services;
 
 namespace EzOrd.Controllers
 {
+    [EnableCors("AllowAll")]
     [ApiController]
     [Route("api/games")]
     public class GamesController : ControllerBase
@@ -23,9 +25,13 @@ namespace EzOrd.Controllers
                 var response = await _gameService.StartGameAsync(request);
                 return Ok(new ApiResponse<GameStartResponse> { Success = true, Data = response });
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 return BadRequest(new ApiResponse<object> { Success = false, Message = ex.Message });
+            }
+            catch
+            {
+                return StatusCode(500, new ApiResponse<object> { Success = false, Message = "An error occurred starting the game." });
             }
         }
 

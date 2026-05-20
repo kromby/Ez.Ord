@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The project is organized as a monorepo:
 - **`app/`**: React Native/Expo frontend (web, iOS, Android targets)
-- **`api/`**: Go backend API using Gin framework, deployed as Azure Functions
+- **`api/`**: .NET 8 Azure Functions isolated-worker API, deployed to Azure Static Web Apps managed API
 
 The monorepo structure allows the SPA frontend to be deployed alongside the backend API to Azure Static Web Apps.
 
@@ -40,19 +40,25 @@ npx expo export -p web # Export for web deployment
 
 ### Backend (api directory)
 
+Requires Azure Functions Core Tools v4 and Azurite (local storage emulator). One-time install:
+
 ```bash
-# Build the API
-go build
+brew install azure/functions/azure-functions-core-tools@4
+npm install -g azurite
+```
 
-# Run the API
-./handler              # (after building)
+```bash
+# In one terminal: start local Azure Storage emulator
+azurite
 
-# Testing
-go test ./...
+# In another terminal: start the Functions host (port 7071)
+cd api && func start
 
-# Formatting and vetting
-go fmt ./...
-go vet ./...
+# Build (compile check only — func start builds automatically)
+cd api && dotnet build
+
+# Run tests
+dotnet test api.sln
 ```
 
 ### Root-level operations
@@ -60,7 +66,7 @@ go vet ./...
 The project uses GitHub Actions for CI/CD (Azure Static Web Apps workflow):
 - Triggers on push to `main` and pull requests
 - Builds frontend with `npx expo export -p web` → outputs to `./app/dist`
-- Builds backend Go binary
+- Lets Oryx (SWA built-in builder) compile the .NET Functions app
 - Deploys to Azure Static Web Apps
 
 ## Architecture
@@ -76,14 +82,14 @@ The Expo web build exports to `./app/dist/` for static hosting.
 
 ### Backend Structure
 
-- **Framework**: Gin (HTTP web framework)
-- **Language**: Go 1.21
-- **Entry point**: `api/handler.go` (Azure Functions handler + Gin router setup)
-- **Deployment**: Azure Functions (hence the `host.json` and `.funcignore`)
-
-Current endpoints:
-- `GET /api/ping` → returns "pong"
-- (Additional game-specific endpoints are likely in `/games` subdirectory)
+- **Framework**: Azure Functions v4 isolated worker with ASP.NET Core integration
+- **Language**: C# on .NET 8
+- **Entry point**: `api/Program.cs` (Functions host setup + DI wiring)
+- **Controllers**: `api/Controllers/` — standard `[ApiController]` classes, unchanged from ASP.NET Core
+- **Services**: `api/Services/` — business logic and Azure Table Storage access
+- **Models**: `api/Models/` — request/response DTOs and Table Storage entities
+- **Tests**: `api.Tests/` — xunit tests, run via `dotnet test api.sln` from repo root
+- **Deployment**: Azure Static Web Apps managed API (`api_location: "./api"`, Oryx builds)
 
 ## Key Dependencies
 
@@ -95,17 +101,19 @@ Current endpoints:
 - `jest-expo` (testing)
 
 **Backend:**
-- `github.com/gin-gonic/gin` v1.10.0 (web framework)
-- Go 1.21
+- `Microsoft.Azure.Functions.Worker` 2.x (Functions isolated worker host)
+- `Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore` 2.x (ASP.NET Core integration)
+- `Azure.Data.Tables` 12.x (Azure Table Storage client)
+- .NET 8 (`net8.0`)
 
 ## Deployment
 
 The project deploys via Azure Static Web Apps:
 1. Frontend built and output to `app/dist/` (Expo web export)
-2. Go API built and deployed from `api/` directory
+2. .NET Functions app compiled by Oryx and deployed from `api/` directory
 3. Frontend served as static files, API available at `/api/*` routes
 
 ## Testing Notes
 
 - **Frontend**: Jest tests via `npm test` in the `app/` directory
-- **Backend**: Go tests via `go test ./...` in the `api/` directory
+- **Backend**: xunit tests via `dotnet test api.sln` from the repo root
