@@ -1,8 +1,8 @@
 import React, { createContext, useReducer, ReactNode, useCallback } from 'react';
 
-import { WORDS, type Category } from '@/constants/words';
+import { type Category } from '@/constants/words';
 import gameAPI from '@/app/services/api';
-import type { GameSetupParams } from '@/app/types/game';
+import type { GameSetupParams, Word } from '@/app/types/game';
 
 // Type definitions
 export type { Category };
@@ -25,6 +25,7 @@ export interface GameState {
   categories: Record<Category, boolean>;
   wordIndex: number;
   playedWords: PlayedWord[];
+  currentWord: Word | null;
   currentRating: Rating | null;
   isLoading: boolean;
   error: string | null;
@@ -43,6 +44,7 @@ export const INITIAL_STATE: GameState = {
   },
   wordIndex: 0,
   playedWords: [],
+  currentWord: null,
   currentRating: null,
   isLoading: false,
   error: null,
@@ -56,6 +58,7 @@ export type GameAction =
   | { type: 'START_GAME_SUCCESS'; payload: string }
   | { type: 'GO_TO_REVIEW' }
   | { type: 'SET_RATING'; payload: Rating }
+  | { type: 'SET_CURRENT_WORD'; payload: Word | null }
   | { type: 'NEXT_WORD' }
   | { type: 'PLAY_AGAIN' }
   | { type: 'END_GAME' }
@@ -112,16 +115,21 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         currentRating: action.payload,
       };
 
+    case 'SET_CURRENT_WORD':
+      return {
+        ...state,
+        currentWord: action.payload,
+      };
+
     case 'NEXT_WORD': {
-      if (state.wordIndex >= WORDS.length) {
-        return state; // No more words available
+      if (!state.currentWord) {
+        return state;
       }
 
-      const currentWord = WORDS[state.wordIndex];
       const newPlayedWord: PlayedWord = {
-        id: currentWord.id,
-        word: currentWord.word,
-        category: currentWord.category,
+        id: state.currentWord.wordId,
+        word: state.currentWord.word,
+        category: state.currentWord.category as Category,
         rating: state.currentRating || 'skipped',
       };
 
@@ -129,6 +137,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         ...state,
         playedWords: [...state.playedWords, newPlayedWord],
         wordIndex: state.wordIndex + 1,
+        currentWord: null,
         currentRating: null,
       };
     }
@@ -139,6 +148,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         route: 'game',
         wordIndex: 0,
         playedWords: [],
+        currentWord: null,
         currentRating: null,
       };
 
@@ -184,6 +194,7 @@ interface GameContextType {
   state: GameState;
   dispatch: React.Dispatch<GameAction>;
   startGameAsync: (gameType: GameType, categories: Category[]) => Promise<void>;
+  fetchNextWordAsync: () => Promise<void>;
   rateWordAsync: (rating: Rating) => Promise<void>;
   skipWordAsync: () => Promise<void>;
   endGameAsync: () => Promise<void>;
@@ -193,6 +204,7 @@ export const GameContext = createContext<GameContextType>({
   state: INITIAL_STATE,
   dispatch: () => {},
   startGameAsync: async () => {},
+  fetchNextWordAsync: async () => {},
   rateWordAsync: async () => {},
   skipWordAsync: async () => {},
   endGameAsync: async () => {},
@@ -209,10 +221,9 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   const startGameAsync = useCallback(async (gameType: GameType, categories: Category[]) => {
     dispatch({ type: 'START_GAME' });
     try {
-      const categoryIds = categories.filter(cat => state.categories[cat]);
       const params: GameSetupParams = {
         gameType,
-        categories: categoryIds,
+        categories,
       };
       const game = await gameAPI.startGame(params);
       dispatch({ type: 'START_GAME_SUCCESS', payload: game.gameId });
@@ -222,17 +233,33 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
         payload: error instanceof Error ? error.message : 'Failed to start game',
       });
     }
-  }, [state.categories]);
+  }, []);
+
+  const fetchNextWordAsync = useCallback(async () => {
+    if (!state.gameId) return;
+
+    dispatch({ type: 'SET_LOADING', payload: true });
+    try {
+      const word = await gameAPI.getNextWord(state.gameId);
+      dispatch({ type: 'SET_CURRENT_WORD', payload: word });
+    } catch (error) {
+      dispatch({
+        type: 'SET_ERROR',
+        payload: error instanceof Error ? error.message : 'Failed to fetch word',
+      });
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, [state.gameId]);
 
   const rateWordAsync = useCallback(async (rating: Rating) => {
-    if (!state.gameId || state.wordIndex >= WORDS.length) return;
+    if (!state.gameId || !state.currentWord) return;
 
     dispatch({ type: 'SET_RATING', payload: rating });
     try {
-      const currentWord = WORDS[state.wordIndex];
       if (rating !== 'skipped') {
         await gameAPI.rateWord(state.gameId, {
-          wordId: currentWord.id,
+          wordId: state.currentWord.wordId,
           difficultyRating: rating as 'easy' | 'medium' | 'hard',
         });
       }
@@ -243,14 +270,13 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
         payload: error instanceof Error ? error.message : 'Failed to rate word',
       });
     }
-  }, [state.gameId, state.wordIndex]);
+  }, [state.gameId, state.currentWord]);
 
   const skipWordAsync = useCallback(async () => {
-    if (!state.gameId || state.wordIndex >= WORDS.length) return;
+    if (!state.gameId || !state.currentWord) return;
 
     try {
-      const currentWord = WORDS[state.wordIndex];
-      await gameAPI.skipWord(state.gameId, { wordId: currentWord.id });
+      await gameAPI.skipWord(state.gameId, { wordId: state.currentWord.wordId });
       dispatch({ type: 'SET_RATING', payload: 'skipped' });
       dispatch({ type: 'NEXT_WORD' });
     } catch (error) {
@@ -259,7 +285,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
         payload: error instanceof Error ? error.message : 'Failed to skip word',
       });
     }
-  }, [state.gameId, state.wordIndex]);
+  }, [state.gameId, state.currentWord]);
 
   const endGameAsync = useCallback(async () => {
     if (!state.gameId) return;
@@ -281,6 +307,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
         state,
         dispatch,
         startGameAsync,
+        fetchNextWordAsync,
         rateWordAsync,
         skipWordAsync,
         endGameAsync,

@@ -1,24 +1,55 @@
-import React from 'react';
-import { View, Text } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useGameState } from '@/hooks/useGameState';
 import { GAMES } from '@/constants/games';
-import { WORDS } from '@/constants/words';
 import { COLORS } from '@/constants/gameTokens';
 import { Stone } from '@/components/Stone';
 import { RuneStrip } from '@/components/RuneStrip';
 
 export default function PlayScreen() {
   const router = useRouter();
-  const { state, dispatch } = useGameState();
+  const { state, fetchNextWordAsync, skipWordAsync } = useGameState();
   const tk = COLORS.parchment;
-  const word = WORDS[state.wordIndex % WORDS.length];
   const game = GAMES.find((g) => g.id === state.game) || GAMES[2];
+
+  useEffect(() => {
+    if (!state.currentWord && state.gameId) {
+      fetchNextWordAsync();
+    }
+  }, [state.currentWord, state.gameId]);
 
   const handleReview = () => {
     router.push('./review');
   };
 
+  const [isSkipping, setIsSkipping] = useState(false);
+
+  const handleSkip = async () => {
+    if (isSkipping) return;
+    setIsSkipping(true);
+    try {
+      await skipWordAsync();
+    } finally {
+      setIsSkipping(false);
+    }
+  };
+
+  if (state.isLoading || !state.currentWord) {
+    return (
+      <View style={{ flex: 1, backgroundColor: tk.bg, justifyContent: 'center', alignItems: 'center' }}>
+        {state.error ? (
+          <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 12, color: tk.rust, letterSpacing: 1.2, textAlign: 'center', paddingHorizontal: 22 }}>
+            {state.error}
+          </Text>
+        ) : (
+          <ActivityIndicator color={tk.ink} />
+        )}
+      </View>
+    );
+  }
+
+  const word = state.currentWord;
   const fontSize = word.word.length > 9 ? 56 : 78;
 
   return (
@@ -68,7 +99,7 @@ export default function PlayScreen() {
         <Stone
           tk={tk}
           color={tk.ochreLight}
-          onClick={handleReview}
+          onClick={handleSkip}
           style={{ paddingVertical: 13, alignItems: 'center' }}
         >
           <Text style={{ fontFamily: 'DMSerifDisplay_400Regular', fontSize: 17, fontWeight: '700', color: tk.ink }}>
