@@ -16,7 +16,6 @@ export default function PlayScreen() {
   const game = GAMES.find((g) => g.id === state.game) || GAMES[2];
 
   const handleReview = () => {
-    dispatch({ type: 'SET_RATING', payload: null });
     router.push('./review');
   };
 

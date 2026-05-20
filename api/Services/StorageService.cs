@@ -3,7 +3,7 @@ using EzOrd.Models;
 
 namespace EzOrd.Services
 {
-    public class StorageService
+    public class StorageService : IStorageService
     {
         private readonly TableServiceClient _tableServiceClient;
         private TableClient _gamesTable = null!;

@@ -17,7 +17,7 @@ var connectionString = builder.Configuration.GetConnectionString("AzureTableStor
 builder.Services.AddSingleton(new TableServiceClient(connectionString));
 
 // Register storage service
-builder.Services.AddSingleton<StorageService>();
+builder.Services.AddSingleton<IStorageService, StorageService>();
 
 // Register game service
 builder.Services.AddScoped<GameService>();
