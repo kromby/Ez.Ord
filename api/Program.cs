@@ -13,12 +13,6 @@ builder.ConfigureFunctionsWebApplication();
 builder.Services.AddApplicationInsightsTelemetryWorkerService();
 builder.Services.ConfigureFunctionsApplicationInsights();
 
-builder.Services.AddControllers();
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll", b => b.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
-});
-
 var connectionString = builder.Configuration.GetConnectionString("AzureTableStorage")
     ?? "UseDevelopmentStorage=true";
 builder.Services.AddSingleton(new TableServiceClient(connectionString));
