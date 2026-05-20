@@ -37,7 +37,6 @@ export default function ReviewScreen() {
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
           <Text
             onPress={() => {
-              dispatch({ type: 'PREVIOUS_WORD' });
               router.push('./play');
             }}
             style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 10, color: tk.inkSoft, letterSpacing: 1.4, textTransform: 'uppercase' }}
@@ -79,7 +78,7 @@ export default function ReviewScreen() {
         {/* Rating Chips */}
         <View style={{ gap: 8, marginBottom: 'auto' }}>
           {ratings.map((r) => {
-            const isSelected = state.rating === r.id;
+            const isSelected = state.currentRating === r.id;
             return (
               <Stone
                 key={r.id}

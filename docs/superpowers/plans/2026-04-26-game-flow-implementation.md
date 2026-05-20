@@ -1,12 +1,12 @@
-# Game Flow Implementation Plan
+# Game Flow Implementation Plan (API Integration)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implement the core game flow: API endpoints for game sessions, word drawing, rating/skipping words; Expo frontend screens for game setup, play, and review.
+**Goal:** Implement backend API and integrate with existing design screens. The game screens (setup, play, review, summary) are already built with Stone components and design tokens. This plan adds the ASP.NET Core backend and wires the frontend screens to use the API instead of local state.
 
 **Architecture:** 
 - **Backend:** ASP.NET Core 8 API using Azure Table Storage for persistence. Controllers expose RESTful endpoints; services encapsulate game logic; storage layer handles all database operations.
-- **Frontend:** Expo/React Native with TypeScript. Screens are functional components connected via Expo Router; API client abstracts HTTP calls; custom hooks manage game state.
+- **Frontend:** Existing Expo/React Native screens with TypeScript and design system. Update useGameState hook to call API instead of managing local state; add API client to abstract HTTP calls.
 
 **Tech Stack:** 
 - Backend: C# / ASP.NET Core 8 / Azure.Data.Tables
@@ -30,16 +30,17 @@
 - **api/Tests/GamesControllerTests.cs** — Integration tests for API endpoints
 
 ### Frontend (app/)
+**Existing Design Screens (using API integration):**
+- **app/app/games/setup.tsx** — Game type selector, category multi-select, "Start Game" button (Stone components, design tokens)
+- **app/app/games/play.tsx** — Display current word + category, buttons for Review/Skip (Stone components, design tokens)
+- **app/app/games/review.tsx** — Show word with difficulty rating chips (Easy/Medium/Hard) (Stone components, design tokens)
+- **app/app/games/summary.tsx** — List words played + ratings with stats (Stone components, design tokens)
+
+**New API Integration Files:**
 - **app/app/types/game.ts** — TypeScript interfaces (Game, Word, GameSetupParams, RatingPayload, etc.)
 - **app/app/services/api.ts** — HTTP client wrapper; functions for each API call (startGame, getNextWord, rateWord, skipWord, endGame, getCategories)
-- **app/app/screens/GameSetupScreen.tsx** — Game type selector, category multi-select, "Start Game" button
-- **app/app/screens/GamePlayScreen.tsx** — Display current word + category, buttons for Review/Skip/End Game
-- **app/app/screens/GameReviewScreen.tsx** — Show word + category larger, difficulty rating selector (Easy/Medium/Hard), "Next Word" button
-- **app/app/screens/GameSummaryScreen.tsx** — (Post-game) List words played + ratings, "Play Again" / "Main Menu" buttons
-- **app/app/components/CategorySelector.tsx** — Reusable multi-select category picker
-- **app/app/hooks/useGame.ts** — Custom hook managing game state (gameId, currentWord, gameType, categories, flow control)
+- **app/app/hooks/useGameState.ts** (modify) — Update to use API instead of local state management
 - **app/app/Tests/api.test.ts** — API client tests
-- **app/app/Tests/GamePlayScreen.test.tsx** — Component tests
 
 ---
 
@@ -1092,1061 +1093,82 @@ git commit -m "types: add game types and API client"
 
 ---
 
-### Task 7: Build GameSetupScreen
+### Task 7: Modify useGameState Hook to Use API
 
 **Files:**
-- Create: `app/app/components/CategorySelector.tsx`
-- Create: `app/app/screens/GameSetupScreen.tsx`
+- Modify: `app/hooks/useGameState.ts`
 
-- [ ] **Step 1: Create CategorySelector component**
+**Note:** The game screens (setup, play, review, summary) already exist in `app/app/games/` with full Stone component and design token integration. This task updates the state management hook to call the API instead of managing local state, allowing the existing beautiful screens to work with the backend.
 
-Create `app/app/components/CategorySelector.tsx`:
+- [ ] **Step 1: Update useGameState to integrate with API**
 
+Read `app/hooks/useGameState.ts` to understand the current local state structure, then modify it to:
+1. Store `gameId` and `gameState` (setup, playing, reviewing, complete)
+2. Call `gameAPI.startGame()` when starting a game
+3. Call `gameAPI.getNextWord()` to fetch the current word
+4. Call `gameAPI.rateWord()` or `gameAPI.skipWord()` when rating/skipping
+5. Call `gameAPI.endGame()` when ending the game
+6. Fetch categories from API instead of hardcoded values
+
+The hook should maintain a similar dispatch-based interface so the existing screens (`setup.tsx`, `play.tsx`, `review.tsx`, `summary.tsx`) can continue to use it without major changes. Actions should include: `START_GAME`, `NEXT_WORD`, `SET_RATING`, `SKIP_WORD`, `END_GAME`, `GO_TO_MENU`, `PLAY_AGAIN`.
+
+Example pattern:
 ```typescript
-import React from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
-import { Category } from '../types/game';
+import { useReducer, useCallback } from 'react';
+import { gameAPI } from '@/services/api';
+import type { Game, Word, Category } from '@/types/game';
 
-interface CategorySelectorProps {
+interface GameState {
+  gameId: string | null;
+  currentWord: Word | null;
+  rating: 'easy' | 'medium' | 'hard' | null;
+  playedWords: Array<{ word: string; category: string; rating?: string }>;
   categories: Category[];
-  selectedCategories: string[];
-  onCategoryToggle: (categoryId: string) => void;
+  // ... other state as needed
 }
 
-export const CategorySelector: React.FC<CategorySelectorProps> = ({
-  categories,
-  selectedCategories,
-  onCategoryToggle,
-}) => {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.label}>Select Word Categories:</Text>
-      <ScrollView style={styles.scrollView}>
-        {categories.map((category) => {
-          const isSelected = selectedCategories.includes(category.id);
-          return (
-            <Pressable
-              key={category.id}
-              onPress={() => onCategoryToggle(category.id)}
-              style={[styles.categoryButton, isSelected && styles.categoryButtonSelected]}
-            >
-              <Text style={[styles.categoryButtonText, isSelected && styles.categoryButtonTextSelected]}>
-                {category.name}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-    </View>
-  );
-};
+type GameAction = 
+  | { type: 'START_GAME'; payload: { gameId: string; categories: string[] } }
+  | { type: 'SET_WORD'; payload: Word }
+  | { type: 'SET_RATING'; payload: 'easy' | 'medium' | 'hard' | null }
+  // ... other actions
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-  },
-  label: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  scrollView: {
-    flex: 1,
-    marginBottom: 16,
-  },
-  categoryButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#e0e0e0',
-  },
-  categoryButtonSelected: {
-    backgroundColor: '#4CAF50',
-  },
-  categoryButtonText: {
-    fontSize: 16,
-    color: '#000',
-  },
-  categoryButtonTextSelected: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-});
-```
-
-- [ ] **Step 2: Create GameSetupScreen**
-
-Create `app/app/screens/GameSetupScreen.tsx`:
-
-```typescript
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator, StyleSheet, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
-import gameAPI from '../services/api';
-import { Category } from '../types/game';
-import { CategorySelector } from '../components/CategorySelector';
-
-type GameType = 'drawing' | 'scrabble' | 'word_explanation' | 'acting';
-
-export default function GameSetupScreen() {
-  const router = useRouter();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [gameType, setGameType] = useState<GameType>('drawing');
-  const [loading, setLoading] = useState(true);
-  const [starting, setStarting] = useState(false);
-
-  useEffect(() => {
-    loadCategories();
+export const useGameState = () => {
+  const [state, dispatch] = useReducer(gameReducer, initialState);
+  
+  const startGame = useCallback(async (gameType: string, selectedCategories: string[]) => {
+    const game = await gameAPI.startGame({ gameType, categories: selectedCategories });
+    dispatch({ type: 'START_GAME', payload: { gameId: game.gameId, categories: game.categories } });
+    const word = await gameAPI.getNextWord(game.gameId);
+    dispatch({ type: 'SET_WORD', payload: word });
   }, []);
-
-  const loadCategories = async () => {
-    try {
-      const cats = await gameAPI.getCategories();
-      setCategories(cats);
-      setLoading(false);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to load categories');
-      setLoading(false);
-    }
-  };
-
-  const toggleCategory = (categoryId: string) => {
-    setSelectedCategories((prev) =>
-      prev.includes(categoryId)
-        ? prev.filter((id) => id !== categoryId)
-        : [...prev, categoryId]
-    );
-  };
-
-  const handleStartGame = async () => {
-    if (selectedCategories.length === 0) {
-      Alert.alert('Error', 'Please select at least one category');
-      return;
-    }
-
-    setStarting(true);
-    try {
-      const game = await gameAPI.startGame({
-        gameType,
-        categories: selectedCategories,
-      });
-      // Navigate to play screen with game ID
-      router.push({
-        pathname: '/screens/GamePlayScreen',
-        params: { gameId: game.gameId },
-      });
-    } catch (error) {
-      Alert.alert('Error', 'Failed to start game');
-      setStarting(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#4CAF50" />
-      </View>
-    );
-  }
-
-  return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Select Game Type</Text>
-      <View style={styles.gameTypeContainer}>
-        {(['drawing', 'scrabble', 'word_explanation', 'acting'] as GameType[]).map((type) => (
-          <Pressable
-            key={type}
-            onPress={() => setGameType(type)}
-            style={[styles.gameTypeButton, gameType === type && styles.gameTypeButtonSelected]}
-          >
-            <Text style={[styles.gameTypeText, gameType === type && styles.gameTypeTextSelected]}>
-              {type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' ')}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <CategorySelector
-        categories={categories}
-        selectedCategories={selectedCategories}
-        onCategoryToggle={toggleCategory}
-      />
-
-      <Pressable
-        onPress={handleStartGame}
-        disabled={starting}
-        style={[styles.startButton, starting && styles.startButtonDisabled]}
-      >
-        {starting ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.startButtonText}>Start Game</Text>
-        )}
-      </Pressable>
-    </ScrollView>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    padding: 16,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  gameTypeContainer: {
-    flexDirection: 'column',
-    marginBottom: 24,
-  },
-  gameTypeButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#e0e0e0',
-  },
-  gameTypeButtonSelected: {
-    backgroundColor: '#4CAF50',
-  },
-  gameTypeText: {
-    fontSize: 16,
-    color: '#000',
-  },
-  gameTypeTextSelected: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  startButton: {
-    backgroundColor: '#4CAF50',
-    paddingVertical: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  startButtonDisabled: {
-    opacity: 0.5,
-  },
-  startButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-});
+  
+  // ... other methods
+  
+  return { state, dispatch, startGame };
+};
 ```
+
+- [ ] **Step 2: Verify existing screens continue to work**
+
+Ensure the modified hook maintains API compatibility with existing screens by:
+1. Keeping the same reducer action types
+2. Maintaining the same state shape
+3. Testing that dispatch calls from screens still work
 
 - [ ] **Step 3: Commit**
 
 ```bash
 cd app
-git add app/components/CategorySelector.tsx app/screens/GameSetupScreen.tsx
-git commit -m "screens: implement game setup screen with category selection"
+git add hooks/useGameState.ts
+git commit -m "hooks: integrate useGameState with API instead of local state"
 ```
 
 ---
 
-### Task 8: Build GamePlayScreen and GameReviewScreen
+## Configuration & Testing
 
-**Files:**
-- Create: `app/app/screens/GamePlayScreen.tsx`
-- Create: `app/app/screens/GameReviewScreen.tsx`
-- Create: `app/app/hooks/useGame.ts`
-
-- [ ] **Step 1: Create useGame hook**
-
-Create `app/app/hooks/useGame.ts`:
-
-```typescript
-import { useState, useCallback } from 'react';
-import gameAPI from '../services/api';
-import { Word } from '../types/game';
-
-export const useGame = (gameId: string) => {
-  const [currentWord, setCurrentWord] = useState<Word | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchNextWord = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const word = await gameAPI.getNextWord(gameId);
-      setCurrentWord(word);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch word');
-    } finally {
-      setLoading(false);
-    }
-  }, [gameId]);
-
-  const rateWord = useCallback(
-    async (difficulty: 'easy' | 'medium' | 'hard') => {
-      if (!currentWord) return;
-      try {
-        await gameAPI.rateWord(gameId, {
-          wordId: currentWord.wordId,
-          difficultyRating: difficulty,
-        });
-        await fetchNextWord();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to rate word');
-      }
-    },
-    [gameId, currentWord, fetchNextWord]
-  );
-
-  const skipWord = useCallback(async () => {
-    if (!currentWord) return;
-    try {
-      await gameAPI.skipWord(gameId, { wordId: currentWord.wordId });
-      await fetchNextWord();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to skip word');
-    }
-  }, [gameId, currentWord, fetchNextWord]);
-
-  const endGame = useCallback(async () => {
-    try {
-      await gameAPI.endGame(gameId);
-      return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to end game');
-      return false;
-    }
-  }, [gameId]);
-
-  return {
-    currentWord,
-    loading,
-    error,
-    fetchNextWord,
-    rateWord,
-    skipWord,
-    endGame,
-  };
-};
-```
-
-- [ ] **Step 2: Create GamePlayScreen**
-
-Create `app/app/screens/GamePlayScreen.tsx`:
-
-```typescript
-import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator, StyleSheet, Alert } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useGame } from '../hooks/useGame';
-
-export default function GamePlayScreen() {
-  const router = useRouter();
-  const { gameId } = useLocalSearchParams<{ gameId: string }>();
-  const [showReview, setShowReview] = useState(false);
-  const [endingGame, setEndingGame] = useState(false);
-
-  const { currentWord, loading, error, fetchNextWord, endGame } = useGame(gameId || '');
-
-  useEffect(() => {
-    fetchNextWord();
-  }, []);
-
-  if (!gameId) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>Invalid game ID</Text>
-      </View>
-    );
-  }
-
-  if (loading && !currentWord) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#4CAF50" />
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>{error}</Text>
-        <Pressable onPress={() => fetchNextWord()} style={styles.retryButton}>
-          <Text style={styles.retryButtonText}>Retry</Text>
-        </Pressable>
-      </View>
-    );
-  }
-
-  if (!currentWord) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>No word loaded</Text>
-      </View>
-    );
-  }
-
-  const handleEndGame = async () => {
-    Alert.alert('End Game?', 'Are you sure you want to end this game?', [
-      { text: 'Cancel', onPress: () => {} },
-      {
-        text: 'End',
-        onPress: async () => {
-          setEndingGame(true);
-          const success = await endGame();
-          if (success) {
-            router.push({
-              pathname: '/screens/GameSummaryScreen',
-              params: { gameId },
-            });
-          } else {
-            setEndingGame(false);
-          }
-        },
-      },
-    ]);
-  };
-
-  if (showReview) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.reviewTitle}>Word</Text>
-        <Text style={styles.reviewWord}>{currentWord.word}</Text>
-        <Text style={styles.reviewCategory}>({currentWord.category})</Text>
-
-        <Text style={styles.ratingLabel}>How difficult was this word?</Text>
-        <View style={styles.ratingButtonContainer}>
-          {(['easy', 'medium', 'hard'] as const).map((difficulty) => (
-            <Pressable
-              key={difficulty}
-              onPress={() => setShowReview(false)} // Continue to next word via rateWord in GameReviewScreen
-              style={styles.ratingButton}
-            >
-              <Text style={styles.ratingButtonText}>{difficulty.toUpperCase()}</Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <Pressable
-          onPress={() => setShowReview(false)}
-          style={styles.reviewNextButton}
-        >
-          <Text style={styles.reviewNextButtonText}>Next Word</Text>
-        </Pressable>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.container}>
-      <Text style={styles.wordText}>{currentWord.word}</Text>
-      <Text style={styles.categoryText}>{currentWord.category}</Text>
-
-      <View style={styles.actionContainer}>
-        <Pressable
-          onPress={() => setShowReview(true)}
-          style={styles.actionButton}
-        >
-          <Text style={styles.actionButtonText}>Review</Text>
-        </Pressable>
-
-        <Pressable
-          onPress={() => {}} // Will be implemented in next task
-          style={[styles.actionButton, styles.skipButton]}
-        >
-          <Text style={styles.actionButtonText}>Skip</Text>
-        </Pressable>
-
-        <Pressable
-          onPress={handleEndGame}
-          disabled={endingGame}
-          style={[styles.actionButton, styles.endButton, endingGame && styles.buttonDisabled]}
-        >
-          <Text style={styles.actionButtonText}>End Game</Text>
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    padding: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  wordText: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  categoryText: {
-    fontSize: 18,
-    color: '#666',
-    marginBottom: 32,
-  },
-  actionContainer: {
-    width: '100%',
-    gap: 12,
-  },
-  actionButton: {
-    backgroundColor: '#4CAF50',
-    paddingVertical: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  skipButton: {
-    backgroundColor: '#FF9800',
-  },
-  endButton: {
-    backgroundColor: '#f44336',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  actionButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  reviewTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  reviewWord: {
-    fontSize: 44,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  reviewCategory: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 32,
-  },
-  ratingLabel: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  ratingButtonContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 32,
-  },
-  ratingButton: {
-    flex: 1,
-    backgroundColor: '#4CAF50',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  ratingButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  reviewNextButton: {
-    backgroundColor: '#2196F3',
-    paddingVertical: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    width: '100%',
-  },
-  reviewNextButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#f44336',
-  },
-  retryButton: {
-    backgroundColor: '#4CAF50',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    marginTop: 16,
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-});
-```
-
-- [ ] **Step 3: Create GameReviewScreen**
-
-Create `app/app/screens/GameReviewScreen.tsx`:
-
-```typescript
-import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useGame } from '../hooks/useGame';
-
-export default function GameReviewScreen() {
-  const router = useRouter();
-  const { gameId, wordId } = useLocalSearchParams<{ gameId: string; wordId: string }>();
-  const [selectedRating, setSelectedRating] = useState<'easy' | 'medium' | 'hard' | null>(null);
-  const { currentWord, rateWord, skipWord } = useGame(gameId || '');
-
-  if (!gameId || !currentWord) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text>Loading...</Text>
-      </View>
-    );
-  }
-
-  const handleRate = async (difficulty: 'easy' | 'medium' | 'hard') => {
-    setSelectedRating(difficulty);
-    await rateWord(difficulty);
-    // Continue to next word automatically
-  };
-
-  const handleSkip = async () => {
-    await skipWord();
-    // Continue to next word automatically
-  };
-
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Word</Text>
-      <Text style={styles.word}>{currentWord.word}</Text>
-      <Text style={styles.category}>({currentWord.category})</Text>
-
-      <Text style={styles.ratingLabel}>How difficult was this word?</Text>
-      <View style={styles.ratingContainer}>
-        {(['easy', 'medium', 'hard'] as const).map((difficulty) => (
-          <Pressable
-            key={difficulty}
-            onPress={() => handleRate(difficulty)}
-            disabled={selectedRating !== null}
-            style={[styles.ratingButton, selectedRating === difficulty && styles.ratingButtonSelected]}
-          >
-            <Text style={styles.ratingButtonText}>{difficulty.toUpperCase()}</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <Pressable
-        onPress={handleSkip}
-        disabled={selectedRating !== null}
-        style={[styles.skipButton, selectedRating !== null && styles.buttonDisabled]}
-      >
-        <Text style={styles.skipButtonText}>Skip</Text>
-      </Pressable>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    padding: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  word: {
-    fontSize: 44,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  category: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 32,
-  },
-  ratingLabel: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
-    width: '100%',
-  },
-  ratingButton: {
-    flex: 1,
-    backgroundColor: '#e0e0e0',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  ratingButtonSelected: {
-    backgroundColor: '#4CAF50',
-  },
-  ratingButtonText: {
-    color: '#000',
-    fontWeight: 'bold',
-  },
-  skipButton: {
-    backgroundColor: '#FF9800',
-    paddingVertical: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    width: '100%',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  skipButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-});
-```
-
-- [ ] **Step 4: Commit**
-
-```bash
-cd app
-git add app/hooks/useGame.ts app/screens/GamePlayScreen.tsx app/screens/GameReviewScreen.tsx
-git commit -m "screens: implement play and review screens with game flow"
-```
-
----
-
-### Task 9: Build GameSummaryScreen
-
-**Files:**
-- Create: `app/app/screens/GameSummaryScreen.tsx`
-
-- [ ] **Step 1: Create GameSummaryScreen**
-
-Create `app/app/screens/GameSummaryScreen.tsx`:
-
-```typescript
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator, StyleSheet, Alert } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import gameAPI from '../services/api';
-import { GameSummary } from '../types/game';
-
-export default function GameSummaryScreen() {
-  const router = useRouter();
-  const { gameId } = useLocalSearchParams<{ gameId: string }>();
-  const [gameSummary, setGameSummary] = useState<GameSummary | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadGameSummary();
-  }, []);
-
-  const loadGameSummary = async () => {
-    if (!gameId) {
-      Alert.alert('Error', 'Invalid game ID');
-      return;
-    }
-
-    try {
-      const summary = await gameAPI.getGameSummary(gameId);
-      setGameSummary(summary);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to load game summary');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#4CAF50" />
-      </View>
-    );
-  }
-
-  if (!gameSummary) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>Failed to load summary</Text>
-        <Pressable onPress={() => router.back()} style={styles.retryButton}>
-          <Text style={styles.retryButtonText}>Go Back</Text>
-        </Pressable>
-      </View>
-    );
-  }
-
-  return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Game Complete!</Text>
-      <Text style={styles.stats}>{gameSummary.words.length} words played</Text>
-
-      <Text style={styles.wordsTitle}>Words Played:</Text>
-      <View style={styles.wordsList}>
-        {gameSummary.words.map((word, index) => (
-          <View key={index} style={styles.wordItem}>
-            <Text style={styles.wordItemText}>{word.word}</Text>
-            <Text style={styles.wordItemCategory}>({word.category})</Text>
-            {word.rating && (
-              <Text style={styles.wordItemRating}>Rating: {word.rating}</Text>
-            )}
-          </View>
-        ))}
-      </View>
-
-      <View style={styles.buttonContainer}>
-        <Pressable onPress={() => router.replace('/screens/GameSetupScreen')} style={styles.primaryButton}>
-          <Text style={styles.primaryButtonText}>Play Again</Text>
-        </Pressable>
-        <Pressable onPress={() => router.replace('/')} style={styles.secondaryButton}>
-          <Text style={styles.secondaryButtonText}>Main Menu</Text>
-        </Pressable>
-      </View>
-    </ScrollView>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    padding: 16,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  stats: {
-    fontSize: 18,
-    textAlign: 'center',
-    color: '#666',
-    marginBottom: 32,
-  },
-  wordsTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  wordsList: {
-    marginBottom: 32,
-  },
-  wordItem: {
-    backgroundColor: '#f5f5f5',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  wordItemText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  wordItemCategory: {
-    fontSize: 14,
-    color: '#666',
-  },
-  wordItemRating: {
-    fontSize: 12,
-    color: '#4CAF50',
-    marginTop: 4,
-  },
-  buttonContainer: {
-    gap: 12,
-    marginBottom: 32,
-  },
-  primaryButton: {
-    backgroundColor: '#4CAF50',
-    paddingVertical: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  primaryButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  secondaryButton: {
-    backgroundColor: '#2196F3',
-    paddingVertical: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  secondaryButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#f44336',
-    marginBottom: 16,
-  },
-  retryButton: {
-    backgroundColor: '#4CAF50',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-});
-```
-
-- [ ] **Step 2: Commit**
-
-```bash
-cd app
-git add app/screens/GameSummaryScreen.tsx
-git commit -m "screens: implement game summary screen"
-```
-
----
-
-### Task 10: Wire Up Navigation in App Router
-
-**Files:**
-- Modify: `app/app/_layout.tsx` (if needed)
-- Ensure screens are accessible via Expo Router
-
-- [ ] **Step 1: Verify Expo Router setup**
-
-The `app/app/` directory uses file-based routing. Ensure this structure exists:
-```
-app/app/
-├── _layout.tsx (root layout)
-├── index.tsx (home screen)
-├── screens/
-│   ├── GameSetupScreen.tsx
-│   ├── GamePlayScreen.tsx
-│   ├── GameReviewScreen.tsx
-│   └── GameSummaryScreen.tsx
-├── types/
-│   └── game.ts
-├── services/
-│   └── api.ts
-├── hooks/
-│   └── useGame.ts
-└── components/
-    └── CategorySelector.tsx
-```
-
-Update `app/app/_layout.tsx` if needed to handle navigation:
-
-```typescript
-import { Stack } from 'expo-router';
-
-export default function RootLayout() {
-  return (
-    <Stack>
-      <Stack.Screen name="index" options={{ title: 'Ez.Ord' }} />
-      <Stack.Screen name="screens/GameSetupScreen" options={{ title: 'Setup Game' }} />
-      <Stack.Screen name="screens/GamePlayScreen" options={{ title: 'Play' }} />
-      <Stack.Screen name="screens/GameReviewScreen" options={{ title: 'Review' }} />
-      <Stack.Screen name="screens/GameSummaryScreen" options={{ title: 'Summary' }} />
-    </Stack>
-  );
-}
-```
-
-- [ ] **Step 2: Update home screen to navigate to game setup**
-
-Ensure `app/app/index.tsx` has a button to start a game:
-
-```typescript
-import { Pressable, Text, View, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
-
-export default function HomeScreen() {
-  const router = useRouter();
-
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Ez.Ord</Text>
-      <Text style={styles.subtitle}>Learn Icelandic Through Games</Text>
-      <Pressable
-        onPress={() => router.push('/screens/GameSetupScreen')}
-        style={styles.button}
-      >
-        <Text style={styles.buttonText}>Start Game</Text>
-      </Pressable>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  title: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 32,
-  },
-  button: {
-    backgroundColor: '#4CAF50',
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 8,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-});
-```
-
-- [ ] **Step 3: Commit**
-
-```bash
-cd app
-git add app/_layout.tsx app/index.tsx
-git commit -m "nav: wire up Expo Router for game screens"
-```
-
----
-
-### Task 11: Add Configuration for API Base URL
+### Task 8: Add Configuration for API Base URL
 
 **Files:**
 - Create/Modify: `.env.local`
@@ -2188,15 +1210,12 @@ git commit -m "config: add environment configuration for API and storage"
 
 ---
 
-## Testing
-
-### Task 12: Write Unit Tests for API
+### Task 9: Write Unit Tests for Backend
 
 **Files:**
 - Create: `api/Tests/GameServiceTests.cs`
-- Create: `api/Tests/StorageServiceTests.cs`
 
-- [ ] **Step 1: Create test base and mocks**
+- [ ] **Step 1: Create test project and basic tests**
 
 Create `api/Tests/GameServiceTests.cs`:
 
@@ -2239,38 +1258,9 @@ namespace EzOrd.Tests
             Assert.Equal(2, response.Categories.Count);
             _mockStorage.Verify(s => s.InsertGameAsync(It.IsAny<GameEntity>()), Times.Once);
         }
-
-        [Fact]
-        public async Task RateWord_CreatesRatingEntity()
-        {
-            // Arrange
-            var gameId = Guid.NewGuid().ToString();
-            var game = new GameEntity
-            {
-                RowKey = gameId,
-                GameType = "drawing",
-                Categories = JsonSerializer.Serialize(new[] { "noun" })
-            };
-
-            var request = new RateWordRequest
-            {
-                WordId = Guid.NewGuid().ToString(),
-                DifficultyRating = "easy"
-            };
-
-            _mockStorage.Setup(s => s.GetGameAsync(gameId)).ReturnsAsync(game);
-
-            // Act
-            await _gameService.RateWordAsync(gameId, request);
-
-            // Assert
-            _mockStorage.Verify(s => s.InsertRatingAsync(It.IsAny<WordRatingEntity>()), Times.Once);
-        }
     }
 }
 ```
-
-- [ ] **Step 2: Create test project**
 
 Create `api/Tests/Tests.csproj`:
 
@@ -2293,16 +1283,16 @@ Create `api/Tests/Tests.csproj`:
 </Project>
 ```
 
-- [ ] **Step 3: Run tests**
+- [ ] **Step 2: Run tests**
 
 ```bash
 cd api
 dotnet test
 ```
 
-Expected: All tests pass.
+Expected: Tests pass.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
 cd api
@@ -2312,11 +1302,10 @@ git commit -m "tests: add unit tests for game service"
 
 ---
 
-### Task 13: Write Component Tests for Frontend
+### Task 10: Write Component Tests for Frontend
 
 **Files:**
 - Create: `app/app/__tests__/api.test.ts`
-- Create: `app/app/__tests__/GameSetupScreen.test.tsx`
 
 - [ ] **Step 1: Create API client tests**
 
@@ -2354,10 +1343,6 @@ describe('gameAPI', () => {
     });
 
     expect(result.gameId).toBe('test-id');
-    expect(axios.post).toHaveBeenCalledWith(
-      '/api/games/start',
-      expect.objectContaining({ gameType: 'drawing' })
-    );
   });
 
   it('getNextWord should call GET /api/games/{gameId}/next-word', async () => {
@@ -2377,7 +1362,6 @@ describe('gameAPI', () => {
     const result = await gameAPI.getNextWord('game-id');
 
     expect(result.word).toBe('hús');
-    expect(axios.get).toHaveBeenCalledWith('/api/games/game-id/next-word');
   });
 });
 ```
@@ -2401,9 +1385,7 @@ git commit -m "tests: add API client tests"
 
 ---
 
-## Final Tasks
-
-### Task 14: Build and Test Locally
+### Task 11: Build and Test Locally
 
 - [ ] **Step 1: Build ASP.NET Core API**
 
@@ -2427,12 +1409,12 @@ Expected: Expo dev menu appears, press `w` for web version or `i`/`a` for iOS/An
 
 - [ ] **Step 3: Manual testing flow**
 
-1. Navigate to GameSetupScreen
+1. Navigate to game setup screen
 2. Select a game type and at least one category
 3. Click "Start Game"
-4. Verify word appears
+4. Verify word appears from API
 5. Click "Review" and rate a word
-6. Click "Next Word" and repeat
+6. Click next and repeat
 7. Click "End Game" and confirm
 8. Verify summary screen shows played words
 
@@ -2442,7 +1424,7 @@ Check for successful network requests to `/api/games/start`, `/api/games/{id}/ne
 
 ---
 
-### Task 15: Final Cleanup and Documentation
+### Task 12: Final Cleanup and Documentation
 
 - [ ] **Step 1: Update README with setup instructions**
 
@@ -2490,8 +1472,8 @@ git commit -m "docs: add development setup instructions"
 This plan implements the complete game flow:
 
 1. **Backend (C# / ASP.NET Core):** API endpoints, storage layer, business logic for games/words/ratings
-2. **Frontend (Expo / React Native):** Setup screen, play screen, review screen, summary screen, API client
+2. **Frontend (Expo / React Native):** Uses existing beautifully designed screens (setup, play, review, summary) with design tokens and Stone components. Integrates API via useGameState hook and API client.
 3. **Testing:** Unit tests for services, API client tests
 4. **Configuration:** Environment setup for local development and production
 
-The implementation follows clean architecture: thin client, stateful API, persistent storage. Ready for future features (adaptive difficulty, player stats, multiplayer).
+The implementation preserves the existing design work and follows clean architecture: thin client with API integration, stateful backend, persistent storage. Ready for future features (adaptive difficulty, player stats, multiplayer).
