@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, ScrollView, Text } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useGameState } from '@/hooks/useGameState';
 import { GAMES } from '@/constants/games';
 import { CATEGORIES } from '@/constants/words';
@@ -11,7 +11,14 @@ import { Divider } from '@/components/Divider';
 
 export default function SetupScreen() {
   const router = useRouter();
+  const { game: gameParam } = useLocalSearchParams<{ game: string }>();
   const { state, dispatch } = useGameState();
+
+  useEffect(() => {
+    if (gameParam && GAMES.some(g => g.id === gameParam)) {
+      dispatch({ type: 'SET_GAME', payload: gameParam as 'teikna' | 'utskyra' | 'leika' });
+    }
+  }, [gameParam]);
   const tk = COLORS.parchment; // TODO: support theme switching
   const selectedCatsCount = Object.values(state.categories).filter(Boolean).length;
 

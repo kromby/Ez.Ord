@@ -1,4 +1,5 @@
 import { View, Image, StyleSheet } from "react-native";
+import { useRouter } from "expo-router";
 
 import { HelloWave } from "@/components/HelloWave";
 import ParallaxScrollView from "@/components/ParallaxScrollView";
@@ -9,6 +10,11 @@ import { getTheme } from "@/constants/gameTokens";
 
 export default function Index() {
   const theme = getTheme('fjord');
+  const router = useRouter();
+
+  const goToSetup = (game: string) => {
+    router.push({ pathname: '/games/setup', params: { game } });
+  };
 
   return (
     <ParallaxScrollView
@@ -24,16 +30,16 @@ export default function Index() {
         <HelloWave />
       </ThemedView>
       <ThemedView style={styles.stepContainer}>
-        <GameButton label="TEIKNA" onPress={() => {}} theme={theme} />
+        <GameButton label="TEIKNA" onPress={() => goToSetup('teikna')} theme={theme} />
       </ThemedView>
       <ThemedView style={styles.stepContainer}>
-        <GameButton label="LEIKA" onPress={() => {}} theme={theme} />
+        <GameButton label="LEIKA" onPress={() => goToSetup('leika')} theme={theme} />
       </ThemedView>
       <ThemedView style={styles.stepContainer}>
-        <GameButton label="ÚTSKÝRA" onPress={() => {}} theme={theme} />
+        <GameButton label="ÚTSKÝRA" onPress={() => goToSetup('utskyra')} theme={theme} />
       </ThemedView>
       <ThemedView style={styles.stepContainer}>
-        <GameButton label="ANNAÐ" onPress={() => {}} theme={theme} />
+        <GameButton label="ANNAÐ" onPress={() => goToSetup('teikna')} theme={theme} />
       </ThemedView>
     </ParallaxScrollView>
   );
