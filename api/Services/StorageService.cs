@@ -1,3 +1,4 @@
+using Azure;
 using Azure.Data.Tables;
 using EzOrd.Models;
 
@@ -34,9 +35,9 @@ namespace EzOrd.Services
         {
             try
             {
-                return await _gamesTable.GetEntityAsync<GameEntity>($"game_drawing", gameId); // Simplified for now
+                return await _gamesTable.GetEntityAsync<GameEntity>("games", gameId);
             }
-            catch
+            catch (RequestFailedException ex) when (ex.Status == 404)
             {
                 return null;
             }
@@ -44,14 +45,14 @@ namespace EzOrd.Services
 
         public async Task InsertGameAsync(GameEntity game)
         {
-            game.PartitionKey = $"game_{game.GameType}";
+            game.PartitionKey = "games";
             game.RowKey = game.RowKey; // Game ID already set
             await _gamesTable.AddEntityAsync(game);
         }
 
         public async Task UpdateGameAsync(GameEntity game)
         {
-            await _gamesTable.UpdateEntityAsync(game, Azure.ETag.All);
+            await _gamesTable.UpdateEntityAsync(game, game.ETag);
         }
 
         // GameWords
@@ -68,7 +69,7 @@ namespace EzOrd.Services
             {
                 results.Add(item);
             }
-            return results.OrderBy(w => int.TryParse(w.RowKey, out var seq) ? seq : int.MaxValue).ToList();
+            return results.OrderBy(w => w.Sequence).ToList();
         }
 
         public async Task<int> GetGameWordCountAsync(string gameId)
@@ -89,7 +90,7 @@ namespace EzOrd.Services
             {
                 return await _wordRatingsTable.GetEntityAsync<WordRatingEntity>(wordId, gameId);
             }
-            catch
+            catch (RequestFailedException ex) when (ex.Status == 404)
             {
                 return null;
             }
@@ -102,7 +103,7 @@ namespace EzOrd.Services
             {
                 return await _wordsTable.GetEntityAsync<WordEntity>(category, wordId);
             }
-            catch
+            catch (RequestFailedException ex) when (ex.Status == 404)
             {
                 return null;
             }
@@ -125,7 +126,7 @@ namespace EzOrd.Services
         public async Task UpdateWordUsageAsync(WordEntity word)
         {
             word.UsageCount++;
-            await _wordsTable.UpdateEntityAsync(word, Azure.ETag.All);
+            await _wordsTable.UpdateEntityAsync(word, word.ETag);
         }
 
         public async Task<List<string>> GetCategoriesAsync()
