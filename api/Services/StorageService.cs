@@ -135,33 +135,43 @@ namespace EzOrd.Services
 
         public async Task<WordEntity?> GetRandomWordAsync(List<string> wordClasses)
         {
-            var perClass = new List<(string Pk, List<string> Keys)>();
-            var total = 0;
-            foreach (var wc in wordClasses)
+            // On a stale RowKey (404) we evict the partition's cached list and retry once,
+            // so a deleted word doesn't masquerade as "no words available".
+            for (var attempt = 0; attempt < 2; attempt++)
             {
-                var ids = await GetWordIdsForClassAsync(wc);
-                if (ids.Count == 0) continue;
-                perClass.Add((wc, ids));
-                total += ids.Count;
-            }
-
-            if (total == 0) return null;
-
-            var offset = Random.Shared.Next(total);
-            foreach (var (pk, keys) in perClass)
-            {
-                if (offset < keys.Count)
+                var perClass = new List<(string Pk, List<string> Keys)>();
+                var total = 0;
+                foreach (var wc in wordClasses)
                 {
-                    try
-                    {
-                        return await _wordsTable.GetEntityAsync<WordEntity>(pk, keys[offset]);
-                    }
-                    catch (RequestFailedException ex) when (ex.Status == 404)
-                    {
-                        return null;
-                    }
+                    var ids = await GetWordIdsForClassAsync(wc);
+                    if (ids.Count == 0) continue;
+                    perClass.Add((wc, ids));
+                    total += ids.Count;
                 }
-                offset -= keys.Count;
+
+                if (total == 0) return null;
+
+                var offset = Random.Shared.Next(total);
+                var stale = false;
+                foreach (var (pk, keys) in perClass)
+                {
+                    if (offset < keys.Count)
+                    {
+                        try
+                        {
+                            return await _wordsTable.GetEntityAsync<WordEntity>(pk, keys[offset]);
+                        }
+                        catch (RequestFailedException ex) when (ex.Status == 404)
+                        {
+                            _wordIdsByClass.TryRemove(pk, out _);
+                            stale = true;
+                        }
+                        break;
+                    }
+                    offset -= keys.Count;
+                }
+
+                if (!stale) break;
             }
             return null;
         }
