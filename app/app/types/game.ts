@@ -9,6 +9,7 @@ export interface Game {
 export interface Word {
   word: string;
   category: string;
+  typeName?: string;
   wordId: string;
 }
 

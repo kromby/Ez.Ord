@@ -78,6 +78,10 @@ namespace EzOrd.Services
             var random = new Random();
             var selectedWord = words[random.Next(words.Count)];
 
+            // Resolve category display name and type name
+            var categoryName = await _storage.GetCategoryNameByWordClassAsync(selectedWord.PartitionKey);
+            var wordType = await _storage.GetWordTypeAsync(selectedWord.PartitionKey, selectedWord.Category);
+
             // Create GameWord entry
             var sequence = await _storage.GetGameWordCountAsync(gameId);
             var gameWord = new GameWordEntity
@@ -87,7 +91,7 @@ namespace EzOrd.Services
                 Sequence = sequence,
                 WordId = selectedWord.RowKey,
                 Word = selectedWord.Word,
-                Category = selectedWord.Category,
+                Category = categoryName ?? selectedWord.PartitionKey,
                 DrawnAt = DateTime.UtcNow
             };
 
@@ -99,7 +103,8 @@ namespace EzOrd.Services
             return new WordResponse
             {
                 Word = selectedWord.Word,
-                Category = selectedWord.Category,
+                Category = categoryName ?? selectedWord.PartitionKey,
+                TypeName = wordType?.Name ?? string.Empty,
                 WordId = selectedWord.RowKey
             };
         }
