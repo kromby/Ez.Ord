@@ -69,14 +69,10 @@ namespace EzOrd.Services
             var wordClasses = !string.IsNullOrEmpty(game.WordClasses)
                 ? JsonSerializer.Deserialize<List<string>>(game.WordClasses) ?? new()
                 : new();
-            var words = await _storage.GetWordsByCategoriesAsync(wordClasses);
 
-            if (words.Count == 0)
+            var selectedWord = await _storage.GetRandomWordAsync(wordClasses);
+            if (selectedWord == null)
                 throw new InvalidOperationException("No words available in selected categories");
-
-            // Random selection
-            var random = new Random();
-            var selectedWord = words[random.Next(words.Count)];
 
             // Resolve category display name and type name
             var categoryName = await _storage.GetCategoryNameByWordClassAsync(selectedWord.PartitionKey);

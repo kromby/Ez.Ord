@@ -10,6 +10,7 @@ import {
 } from "@expo-google-fonts/familjen-grotesk";
 import { DMSerifDisplay_400Regular } from "@expo-google-fonts/dm-serif-display";
 import { JetBrainsMono_400Regular } from "@expo-google-fonts/jetbrains-mono";
+import { GameProvider } from "@/contexts/GameContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -33,11 +34,13 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="games" options={{ headerShown: false }} />
-      </Stack>
-    </ThemeProvider>
+    <GameProvider>
+      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+        <Stack>
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="games" options={{ headerShown: false }} />
+        </Stack>
+      </ThemeProvider>
+    </GameProvider>
   );
 }
