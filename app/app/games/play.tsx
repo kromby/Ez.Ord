@@ -27,6 +27,8 @@ export default function PlayScreen() {
     router.push({ pathname: './review', params: { intent: 'skip' } });
   };
 
+  const { width } = useWindowDimensions();
+
   if (state.isLoading || !state.currentWord) {
     return (
       <View style={{ flex: 1, backgroundColor: tk.bg, justifyContent: 'center', alignItems: 'center' }}>
@@ -41,7 +43,6 @@ export default function PlayScreen() {
     );
   }
 
-  const { width } = useWindowDimensions();
   const word = state.currentWord;
   // Available text width = screen - outer padding (22×2) - stone padding (18×2)
   const availableWidth = width - 80;
