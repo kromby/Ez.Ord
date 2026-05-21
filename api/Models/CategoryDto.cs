@@ -1,8 +1,7 @@
-namespace EzOrd.Models
+namespace EzOrd.Models;
+
+public class CategoryDto
 {
-    public class CategoryDto
-    {
-        public string Id { get; set; } = string.Empty;
-        public string Name { get; set; } = string.Empty;
-    }
+    public string Id { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
 }

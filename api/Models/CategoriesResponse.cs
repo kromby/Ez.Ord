@@ -1,7 +1,6 @@
-namespace EzOrd.Models
+namespace EzOrd.Models;
+
+public class CategoriesResponse
 {
-    public class CategoriesResponse
-    {
-        public List<CategoryDto> Categories { get; set; } = new();
-    }
+    public List<CategoryDto> Categories { get; set; } = new();
 }

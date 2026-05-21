@@ -1,7 +1,6 @@
-namespace EzOrd.Models
+namespace EzOrd.Models;
+
+public class SkipWordRequest
 {
-    public class SkipWordRequest
-    {
-        public string WordId { get; set; } = string.Empty;
-    }
+    public string WordId { get; set; } = string.Empty;
 }
