@@ -25,7 +25,7 @@ class GameAPI {
   constructor(baseURL: string = process.env.EXPO_PUBLIC_API_BASE_URL || '') {
     this.client = axios.create({
       baseURL,
-      timeout: 10000,
+      timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
       },

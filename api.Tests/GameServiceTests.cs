@@ -188,8 +188,8 @@ namespace EzOrd.Tests
                 .Setup(s => s.GetGameAsync(gameId))
                 .ReturnsAsync(game);
             _mockStorageService
-                .Setup(s => s.GetWordsByCategoriesAsync(It.IsAny<List<string>>()))
-                .ReturnsAsync(new List<WordEntity> { word });
+                .Setup(s => s.GetRandomWordAsync(It.IsAny<List<string>>()))
+                .ReturnsAsync(word);
             _mockStorageService
                 .Setup(s => s.GetGameWordCountAsync(gameId))
                 .ReturnsAsync(0);
@@ -230,8 +230,8 @@ namespace EzOrd.Tests
                 .Setup(s => s.GetGameAsync(gameId))
                 .ReturnsAsync(game);
             _mockStorageService
-                .Setup(s => s.GetWordsByCategoriesAsync(It.IsAny<List<string>>()))
-                .ReturnsAsync(new List<WordEntity>());
+                .Setup(s => s.GetRandomWordAsync(It.IsAny<List<string>>()))
+                .ReturnsAsync((WordEntity?)null);
 
             // Act & Assert
             await Assert.ThrowsAsync<InvalidOperationException>(

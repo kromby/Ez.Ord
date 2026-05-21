@@ -1,6 +1,7 @@
 using Azure;
 using Azure.Data.Tables;
 using EzOrd.Models;
+using System.Collections.Concurrent;
 
 namespace EzOrd.Services
 {
@@ -13,6 +14,8 @@ namespace EzOrd.Services
         private TableClient _wordsTable = null!;
         private TableClient _categoriesTable = null!;
         private TableClient _wordTypesTable = null!;
+
+        private readonly ConcurrentDictionary<string, Lazy<Task<List<string>>>> _wordIdsByClass = new();
 
         private static readonly IReadOnlyDictionary<string, string> KnownTypeNames = new Dictionary<string, string>
         {
@@ -130,18 +133,66 @@ namespace EzOrd.Services
             }
         }
 
-        public async Task<List<WordEntity>> GetWordsByCategoriesAsync(List<string> wordClasses)
+        public async Task<WordEntity?> GetRandomWordAsync(List<string> wordClasses)
         {
-            var results = new List<WordEntity>();
-            foreach (var wordClass in wordClasses)
+            var perClass = new List<(string Pk, List<string> Keys)>();
+            var total = 0;
+            foreach (var wc in wordClasses)
             {
-                var query = _wordsTable.QueryAsync<WordEntity>(w => w.PartitionKey == wordClass);
-                await foreach (var item in query)
-                {
-                    results.Add(item);
-                }
+                var ids = await GetWordIdsForClassAsync(wc);
+                if (ids.Count == 0) continue;
+                perClass.Add((wc, ids));
+                total += ids.Count;
             }
-            return results;
+
+            if (total == 0) return null;
+
+            var offset = Random.Shared.Next(total);
+            foreach (var (pk, keys) in perClass)
+            {
+                if (offset < keys.Count)
+                {
+                    try
+                    {
+                        return await _wordsTable.GetEntityAsync<WordEntity>(pk, keys[offset]);
+                    }
+                    catch (RequestFailedException ex) when (ex.Status == 404)
+                    {
+                        return null;
+                    }
+                }
+                offset -= keys.Count;
+            }
+            return null;
+        }
+
+        private async Task<List<string>> GetWordIdsForClassAsync(string wordClass)
+        {
+            var lazy = _wordIdsByClass.GetOrAdd(
+                wordClass,
+                wc => new Lazy<Task<List<string>>>(() => LoadWordIdsAsync(wc), LazyThreadSafetyMode.ExecutionAndPublication));
+            try
+            {
+                return await lazy.Value;
+            }
+            catch
+            {
+                _wordIdsByClass.TryRemove(wordClass, out _);
+                throw;
+            }
+        }
+
+        private async Task<List<string>> LoadWordIdsAsync(string wordClass)
+        {
+            var ids = new List<string>();
+            var query = _wordsTable.QueryAsync<WordEntity>(
+                filter: w => w.PartitionKey == wordClass,
+                select: new[] { "RowKey" });
+            await foreach (var w in query)
+            {
+                ids.Add(w.RowKey);
+            }
+            return ids;
         }
 
         public async Task UpdateWordUsageAsync(WordEntity word)
