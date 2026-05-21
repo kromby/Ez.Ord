@@ -283,7 +283,7 @@ namespace EzOrd.Tests
         }
 
         [Fact]
-        public async Task SkipWordAsync_ShouldInsertSkipAsRating()
+        public async Task SkipWordAsync_ShouldInsertSkippedFlagAndDifficulty()
         {
             // Arrange
             var gameId = "game123";
@@ -297,7 +297,7 @@ namespace EzOrd.Tests
                 StartedAt = DateTime.UtcNow
             };
 
-            var request = new SkipWordRequest { WordId = wordId };
+            var request = new SkipWordRequest { WordId = wordId, DifficultyRating = "easy" };
 
             _mockStorageService
                 .Setup(s => s.GetGameAsync(gameId))
@@ -309,7 +309,60 @@ namespace EzOrd.Tests
             // Assert
             _mockStorageService.Verify(
                 s => s.InsertRatingAsync(It.Is<WordRatingEntity>(
-                    r => r.Difficulty == "skipped" && r.PartitionKey == wordId)),
+                    r => r.Skipped && r.Difficulty == "easy" && r.PartitionKey == wordId)),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task SkipWordAsync_ShouldThrowWhenDifficultyMissing()
+        {
+            // Arrange
+            var gameId = "game123";
+            var game = new GameEntity
+            {
+                PartitionKey = "game_drawing",
+                RowKey = gameId,
+                GameType = "drawing",
+                Categories = "[]",
+                StartedAt = DateTime.UtcNow
+            };
+            _mockStorageService
+                .Setup(s => s.GetGameAsync(gameId))
+                .ReturnsAsync(game);
+
+            var request = new SkipWordRequest { WordId = "word1", DifficultyRating = "" };
+
+            // Act & Assert
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => _gameService.SkipWordAsync(gameId, request));
+        }
+
+        [Fact]
+        public async Task RateWordAsync_ShouldStoreSkippedFalse()
+        {
+            // Arrange
+            var gameId = "game123";
+            var game = new GameEntity
+            {
+                PartitionKey = "game_drawing",
+                RowKey = gameId,
+                GameType = "drawing",
+                Categories = "[]",
+                StartedAt = DateTime.UtcNow
+            };
+            _mockStorageService
+                .Setup(s => s.GetGameAsync(gameId))
+                .ReturnsAsync(game);
+
+            var request = new RateWordRequest { WordId = "word1", DifficultyRating = "medium" };
+
+            // Act
+            await _gameService.RateWordAsync(gameId, request);
+
+            // Assert
+            _mockStorageService.Verify(
+                s => s.InsertRatingAsync(It.Is<WordRatingEntity>(
+                    r => !r.Skipped && r.Difficulty == "medium")),
                 Times.Once);
         }
 
