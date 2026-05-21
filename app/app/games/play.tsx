@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useGameState } from '@/hooks/useGameState';
 import { GAMES } from '@/constants/games';
@@ -41,8 +41,11 @@ export default function PlayScreen() {
     );
   }
 
+  const { width } = useWindowDimensions();
   const word = state.currentWord;
-  const fontSize = word.word.length > 9 ? 56 : 78;
+  // Available text width = screen - outer padding (22×2) - stone padding (18×2)
+  const availableWidth = width - 80;
+  const fontSize = Math.min(78, Math.max(22, Math.floor(availableWidth / (word.word.length * 0.55))));
 
   return (
     <View style={{ flex: 1, backgroundColor: tk.bg }}>
@@ -65,7 +68,12 @@ export default function PlayScreen() {
           <View style={{ marginBottom: 20 }}>
             <RuneStrip tk={tk} />
           </View>
-          <Text style={{ fontFamily: 'DMSerifDisplay_400Regular', fontSize, lineHeight: fontSize * 1.2, fontWeight: '700', color: tk.ink, letterSpacing: -2, marginVertical: 20 }}>
+          <Text
+            style={{ fontFamily: 'DMSerifDisplay_400Regular', fontSize, lineHeight: fontSize * 1.2, fontWeight: '700', color: tk.ink, letterSpacing: -2, marginVertical: 20 }}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.5}
+          >
             {word.word}
           </Text>
           <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 12, color: tk.inkSoft, letterSpacing: 1.2 }}>
