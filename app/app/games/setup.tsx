@@ -3,7 +3,6 @@ import { View, ScrollView, Text, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useGameState } from '@/hooks/useGameState';
 import { GAMES } from '@/constants/games';
-import { CATEGORIES, type Category } from '@/constants/words';
 import { COLORS } from '@/constants/gameTokens';
 import { Stone } from '@/components/Stone';
 import { RuneStrip } from '@/components/RuneStrip';
@@ -12,8 +11,12 @@ import { Divider } from '@/components/Divider';
 export default function SetupScreen() {
   const router = useRouter();
   const { game: gameParam } = useLocalSearchParams<{ game: string }>();
-  const { state, dispatch, startGameAsync } = useGameState();
+  const { state, dispatch, startGameAsync, loadCategoriesAsync } = useGameState();
   const [isStarting, setIsStarting] = useState(false);
+
+  useEffect(() => {
+    loadCategoriesAsync();
+  }, [loadCategoriesAsync]);
 
   useEffect(() => {
     if (gameParam && GAMES.some(g => g.id === gameParam)) {
@@ -34,24 +37,25 @@ export default function SetupScreen() {
   }, [isStarting, state.gameId, state.isLoading, state.error, router]);
 
   const tk = COLORS.parchment; // TODO: support theme switching
-  const selectedCatsCount = Object.values(state.categories).filter(Boolean).length;
+  const selectedCatsCount = Object.values(state.selectedCategories).filter(Boolean).length;
+  const totalCatsCount = state.availableCategories.length;
 
   const handleGameSelect = (gameId: string) => {
     dispatch({ type: 'SET_GAME', payload: gameId as 'teikna' | 'utskyra' | 'leika' });
   };
 
   const handleCategoryToggle = (catId: string) => {
-    dispatch({ type: 'TOGGLE_CATEGORY', payload: catId as 'nafn' | 'sagn' | 'lys' | 'orne' });
+    dispatch({ type: 'TOGGLE_CATEGORY', payload: catId });
   };
 
   const handleStart = async () => {
     if (selectedCatsCount === 0 || !state.game || state.isLoading || isStarting) return;
-    const selectedCategories = (Object.keys(state.categories) as Category[]).filter(
-      cat => state.categories[cat]
+    const selectedCategoryIds = Object.keys(state.selectedCategories).filter(
+      id => state.selectedCategories[id]
     );
     setIsStarting(true);
     try {
-      await startGameAsync(state.game, selectedCategories);
+      await startGameAsync(state.game, selectedCategoryIds);
     } catch {
       setIsStarting(false);
     }
@@ -108,34 +112,40 @@ export default function SetupScreen() {
 
         {/* Categories Section */}
         <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 10, color: tk.inkSoft, letterSpacing: 1.5, marginBottom: 10, textTransform: 'uppercase' }}>
-          · Orðaflokkar · {selectedCatsCount}/4
+          · Orðaflokkar · {selectedCatsCount}/{totalCatsCount}
         </Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 28 }}>
-          {CATEGORIES.map((cat) => {
-            const isOn = state.categories[cat.id as 'nafn' | 'sagn' | 'lys' | 'orne'];
-            return (
-              <Stone
-                key={cat.id}
-                tk={tk}
-                color={isOn ? tk.ochreLight : tk.card}
-                fg={isOn ? tk.ink : tk.ink}
-                onClick={() => handleCategoryToggle(cat.id)}
-                radius={999}
-                style={{ paddingVertical: 8, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 8 }}
-              >
-                <Text style={{ fontSize: 12, color: isOn ? tk.ink : tk.ink }}>
-                  {isOn ? '✦' : '◌'}
-                </Text>
-                <Text style={{ fontFamily: 'DMSerifDisplay_400Regular', fontSize: 16, fontWeight: '700', fontStyle: isOn ? 'italic' : 'normal', color: tk.ink }}>
-                  {cat.label}
-                </Text>
-                <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 10, opacity: 0.6, color: tk.ink }}>
-                  {cat.count}
-                </Text>
-              </Stone>
-            );
-          })}
-        </View>
+        {totalCatsCount === 0 ? (
+          <View style={{ paddingVertical: 16, marginBottom: 28, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <ActivityIndicator color={tk.inkSoft} />
+            <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 11, color: tk.inkSoft }}>
+              Sæki flokka…
+            </Text>
+          </View>
+        ) : (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 28 }}>
+            {state.availableCategories.map((cat) => {
+              const isOn = !!state.selectedCategories[cat.id];
+              return (
+                <Stone
+                  key={cat.id}
+                  tk={tk}
+                  color={isOn ? tk.ochreLight : tk.card}
+                  fg={isOn ? tk.ink : tk.ink}
+                  onClick={() => handleCategoryToggle(cat.id)}
+                  radius={999}
+                  style={{ paddingVertical: 8, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                >
+                  <Text style={{ fontSize: 12, color: isOn ? tk.ink : tk.ink }}>
+                    {isOn ? '✦' : '◌'}
+                  </Text>
+                  <Text style={{ fontFamily: 'DMSerifDisplay_400Regular', fontSize: 16, fontWeight: '700', fontStyle: isOn ? 'italic' : 'normal', color: tk.ink }}>
+                    {cat.name}
+                  </Text>
+                </Stone>
+              );
+            })}
+          </View>
+        )}
       </ScrollView>
 
       {/* Start Button */}

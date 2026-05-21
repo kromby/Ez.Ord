@@ -18,8 +18,9 @@ namespace EzOrd.Services
         Task<WordRatingEntity?> GetRatingAsync(string wordId, string gameId);
 
         Task<WordEntity?> GetWordAsync(string wordId, string category);
-        Task<List<WordEntity>> GetWordsByCategoriesAsync(List<string> categories);
+        Task<List<WordEntity>> GetWordsByCategoriesAsync(List<string> wordClasses);
         Task UpdateWordUsageAsync(WordEntity word);
-        Task<List<string>> GetCategoriesAsync();
+
+        Task<List<CategoryEntity>> GetEnabledCategoriesAsync();
     }
 }

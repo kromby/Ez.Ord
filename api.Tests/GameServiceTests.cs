@@ -17,14 +17,30 @@ namespace EzOrd.Tests
             _gameService = new GameService(_mockStorageService.Object);
         }
 
+        private void SetupEnabledCategories(params (string PartitionKey, string RowKey)[] rows)
+        {
+            var entities = rows.Select(r => new CategoryEntity
+            {
+                PartitionKey = r.PartitionKey,
+                RowKey = r.RowKey,
+                Name = r.PartitionKey,
+                Enabled = true
+            }).ToList();
+
+            _mockStorageService
+                .Setup(s => s.GetEnabledCategoriesAsync())
+                .ReturnsAsync(entities);
+        }
+
         [Fact]
         public async Task StartGameAsync_ShouldCreateGameAndReturnGameId()
         {
             // Arrange
+            SetupEnabledCategories(("nafnord", "hk"), ("sagnord", "so"));
             var request = new GameStartRequest
             {
                 GameType = "drawing",
-                Categories = new List<string> { "nafn", "sagn" }
+                Categories = new List<string> { "nafnord", "sagnord" }
             };
 
             // Act
@@ -42,10 +58,11 @@ namespace EzOrd.Tests
         public async Task StartGameAsync_ShouldCallInsertGameAsync()
         {
             // Arrange
+            SetupEnabledCategories(("nafnord", "hk"));
             var request = new GameStartRequest
             {
                 GameType = "drawing",
-                Categories = new List<string> { "nafn" }
+                Categories = new List<string> { "nafnord" }
             };
 
             // Act
@@ -55,6 +72,54 @@ namespace EzOrd.Tests
             _mockStorageService.Verify(
                 s => s.InsertGameAsync(It.IsAny<GameEntity>()),
                 Times.Once);
+        }
+
+        [Fact]
+        public async Task StartGameAsync_ShouldResolveWordClassesFromEnabledCategories()
+        {
+            // Arrange
+            SetupEnabledCategories(
+                ("nafnord", "hk"),
+                ("nafnord", "kk"),
+                ("sagnord", "so"));
+            var request = new GameStartRequest
+            {
+                GameType = "drawing",
+                Categories = new List<string> { "nafnord" }
+            };
+
+            GameEntity? captured = null;
+            _mockStorageService
+                .Setup(s => s.InsertGameAsync(It.IsAny<GameEntity>()))
+                .Callback<GameEntity>(g => captured = g)
+                .Returns(Task.CompletedTask);
+
+            // Act
+            await _gameService.StartGameAsync(request);
+
+            // Assert
+            Assert.NotNull(captured);
+            var classes = JsonSerializer.Deserialize<List<string>>(captured!.WordClasses)!;
+            Assert.Equal(2, classes.Count);
+            Assert.Contains("hk", classes);
+            Assert.Contains("kk", classes);
+            Assert.DoesNotContain("so", classes);
+        }
+
+        [Fact]
+        public async Task StartGameAsync_ShouldThrowWhenNoEnabledWordClassesMatch()
+        {
+            // Arrange
+            SetupEnabledCategories(("nafnord", "hk"));
+            var request = new GameStartRequest
+            {
+                GameType = "drawing",
+                Categories = new List<string> { "ornefni" }
+            };
+
+            // Act & Assert
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => _gameService.StartGameAsync(request));
         }
 
         [Fact]
@@ -105,16 +170,17 @@ namespace EzOrd.Tests
                 PartitionKey = "game_drawing",
                 RowKey = gameId,
                 GameType = "drawing",
-                Categories = JsonSerializer.Serialize(new[] { "nafn" }),
+                Categories = JsonSerializer.Serialize(new[] { "nafnord" }),
+                WordClasses = JsonSerializer.Serialize(new[] { "hk" }),
                 StartedAt = DateTime.UtcNow
             };
 
             var word = new WordEntity
             {
-                PartitionKey = "nafn",
+                PartitionKey = "hk",
                 RowKey = "word1",
                 Word = "hestur",
-                Category = "nafn",
+                Category = "hk",
                 UsageCount = 5
             };
 
@@ -134,7 +200,7 @@ namespace EzOrd.Tests
             // Assert
             Assert.NotNull(result);
             Assert.Equal("hestur", result.Word);
-            Assert.Equal("nafn", result.Category);
+            Assert.Equal("hk", result.Category);
             Assert.Equal("word1", result.WordId);
         }
 
@@ -148,7 +214,8 @@ namespace EzOrd.Tests
                 PartitionKey = "game_drawing",
                 RowKey = gameId,
                 GameType = "drawing",
-                Categories = JsonSerializer.Serialize(new[] { "nafn" }),
+                Categories = JsonSerializer.Serialize(new[] { "nafnord" }),
+                WordClasses = JsonSerializer.Serialize(new[] { "hk" }),
                 StartedAt = DateTime.UtcNow
             };
 

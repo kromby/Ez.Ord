@@ -12,7 +12,8 @@ namespace EzOrd.Models
 
         public DateTime StartedAt { get; set; }
         public DateTime? EndedAt { get; set; }
-        public string Categories { get; set; } = string.Empty; // JSON array of category IDs
+        public string Categories { get; set; } = string.Empty; // JSON array of friendly category IDs (e.g. nafnord)
+        public string WordClasses { get; set; } = string.Empty; // JSON array of BIN word-class codes resolved at start (e.g. hk, kk)
         public string? UserId { get; set; }
         public string GameType { get; set; } = string.Empty; // drawing, scrabble, word_explanation, acting
     }
@@ -45,8 +46,8 @@ namespace EzOrd.Models
 
     public class WordEntity : ITableEntity
     {
-        public string PartitionKey { get; set; } = string.Empty; // Category (noun, verb, etc.)
-        public string RowKey { get; set; } = string.Empty; // Word ID
+        public string PartitionKey { get; set; } = string.Empty; // BIN word-class code (hk, kk, kvk, lo, so, ...)
+        public string RowKey { get; set; } = string.Empty; // Word ID (BIN-id)
         public DateTimeOffset? Timestamp { get; set; }
         public ETag ETag { get; set; }
 
@@ -56,5 +57,14 @@ namespace EzOrd.Models
         public double? Rating { get; set; }
     }
 
+    public class CategoryEntity : ITableEntity
+    {
+        public string PartitionKey { get; set; } = string.Empty; // Friendly category id (nafnord, sagnord, ...)
+        public string RowKey { get; set; } = string.Empty; // BIN word-class code (hk, kk, kvk, so, lo, ...)
+        public DateTimeOffset? Timestamp { get; set; }
+        public ETag ETag { get; set; }
 
+        public string Name { get; set; } = string.Empty; // Display name (Nafnorð, Sagnorð, ...)
+        public bool Enabled { get; set; }
+    }
 }
