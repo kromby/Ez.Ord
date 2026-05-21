@@ -16,11 +16,16 @@ export default function SummaryScreen() {
     easy: { color: tk.forest, label: 'Létt', glyph: '·' },
     medium: { color: tk.ochre, label: 'Mið', glyph: '··' },
     hard: { color: tk.rust, label: 'Þungt', glyph: '···' },
-    skipped: { color: tk.inkSoft, label: 'Sleppt', glyph: '↷' },
   };
 
   const played = state.playedWords || [];
-  const counts = played.reduce<Record<string, number>>((a, p) => ({ ...a, [p.rating]: (a[p.rating] || 0) + 1 }), {});
+  const counts = played.reduce<{ skipped: number; hard: number }>(
+    (a, p) => ({
+      skipped: a.skipped + (p.skipped ? 1 : 0),
+      hard: a.hard + (p.rating === 'hard' ? 1 : 0),
+    }),
+    { skipped: 0, hard: 0 }
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: tk.bg }}>
@@ -53,7 +58,7 @@ export default function SummaryScreen() {
             </View>
             <View style={{ alignItems: 'center', borderRightWidth: 1, borderRightColor: `${tk.bg}33`, flex: 1 }}>
               <Text style={{ fontFamily: 'DMSerifDisplay_400Regular', fontSize: 36, lineHeight: 36, fontWeight: '700', color: tk.bg }}>
-                {counts.skipped || 0}
+                {counts.skipped}
               </Text>
               <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 9, opacity: 0.85, letterSpacing: 1.5, marginTop: 4, color: tk.bg, textTransform: 'uppercase' }}>
                 sleppt
@@ -61,7 +66,7 @@ export default function SummaryScreen() {
             </View>
             <View style={{ alignItems: 'center', flex: 1 }}>
               <Text style={{ fontFamily: 'DMSerifDisplay_400Regular', fontSize: 36, lineHeight: 36, fontWeight: '700', color: tk.bg }}>
-                {counts.hard || 0}
+                {counts.hard}
               </Text>
               <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 9, opacity: 0.85, letterSpacing: 1.5, marginTop: 4, color: tk.bg, textTransform: 'uppercase' }}>
                 þung
@@ -74,7 +79,7 @@ export default function SummaryScreen() {
         <Divider tk={tk} label="Orðin" />
         <View style={{ marginTop: 12, marginBottom: 22, gap: 8 }}>
           {played.map((p, i) => {
-            const m = map[p.rating || 'skipped'];
+            const m = map[p.rating] || map.medium;
             return (
               <Stone
                 key={i}
@@ -95,6 +100,11 @@ export default function SummaryScreen() {
                   </Text>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 10 }}>
+                  {p.skipped && (
+                    <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 12, color: tk.inkSoft, letterSpacing: 1 }}>
+                      ↷
+                    </Text>
+                  )}
                   <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 12, color: m.color, letterSpacing: 1 }}>
                     {m.glyph}
                   </Text>

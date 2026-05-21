@@ -113,11 +113,14 @@ namespace EzOrd.Services
             if (game.EndedAt.HasValue)
                 throw new InvalidOperationException("Game has already ended");
 
+            ValidateDifficulty(request.DifficultyRating);
+
             var rating = new WordRatingEntity
             {
                 PartitionKey = request.WordId,
                 RowKey = gameId,
                 Difficulty = request.DifficultyRating,
+                Skipped = false,
                 GameType = game.GameType,
                 RatedAt = DateTime.UtcNow
             };
@@ -125,7 +128,7 @@ namespace EzOrd.Services
             await _storage.InsertRatingAsync(rating);
         }
 
-        // Skip a word
+        // Skip a word — difficulty is still required so we can capture why it was skipped
         public async Task SkipWordAsync(string gameId, SkipWordRequest request)
         {
             var game = await _storage.GetGameAsync(gameId);
@@ -134,16 +137,25 @@ namespace EzOrd.Services
             if (game.EndedAt.HasValue)
                 throw new InvalidOperationException("Game has already ended");
 
+            ValidateDifficulty(request.DifficultyRating);
+
             var rating = new WordRatingEntity
             {
                 PartitionKey = request.WordId,
                 RowKey = gameId,
-                Difficulty = "skipped",
+                Difficulty = request.DifficultyRating,
+                Skipped = true,
                 GameType = game.GameType,
                 RatedAt = DateTime.UtcNow
             };
 
             await _storage.InsertRatingAsync(rating);
+        }
+
+        private static void ValidateDifficulty(string difficulty)
+        {
+            if (difficulty != "easy" && difficulty != "medium" && difficulty != "hard")
+                throw new InvalidOperationException("Difficulty must be one of: easy, medium, hard.");
         }
 
         // End a game
@@ -189,7 +201,8 @@ namespace EzOrd.Services
                     Word = gw.Word,
                     Category = gw.Category,
                     DrawnAt = gw.DrawnAt,
-                    Rating = rating?.Difficulty
+                    Rating = rating?.Difficulty,
+                    Skipped = rating?.Skipped ?? false
                 });
             }
 

@@ -29,6 +29,7 @@ describe('GameAPI', () => {
         category: 'nafn',
         drawnAt: new Date().toISOString(),
         rating: 'easy',
+        skipped: false,
       },
     ],
   };
@@ -155,6 +156,7 @@ describe('GameAPI', () => {
     it('should successfully skip a word', async () => {
       const payload: SkipPayload = {
         wordId: 'word1',
+        difficultyRating: 'easy',
       };
 
       mockClient.post.mockResolvedValue({
@@ -171,6 +173,7 @@ describe('GameAPI', () => {
     it('should throw error if skipping fails', async () => {
       const payload: SkipPayload = {
         wordId: 'word1',
+        difficultyRating: 'easy',
       };
 
       mockClient.post.mockResolvedValue({

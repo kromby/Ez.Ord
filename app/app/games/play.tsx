@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useGameState } from '@/hooks/useGameState';
@@ -9,7 +9,7 @@ import { RuneStrip } from '@/components/RuneStrip';
 
 export default function PlayScreen() {
   const router = useRouter();
-  const { state, fetchNextWordAsync, skipWordAsync } = useGameState();
+  const { state, fetchNextWordAsync } = useGameState();
   const tk = COLORS.parchment;
   const game = GAMES.find((g) => g.id === state.game) || GAMES[2];
 
@@ -20,19 +20,11 @@ export default function PlayScreen() {
   }, [state.currentWord, state.gameId]);
 
   const handleReview = () => {
-    router.push('./review');
+    router.push({ pathname: './review', params: { intent: 'rate' } });
   };
 
-  const [isSkipping, setIsSkipping] = useState(false);
-
-  const handleSkip = async () => {
-    if (isSkipping) return;
-    setIsSkipping(true);
-    try {
-      await skipWordAsync();
-    } finally {
-      setIsSkipping(false);
-    }
+  const handleSkip = () => {
+    router.push({ pathname: './review', params: { intent: 'skip' } });
   };
 
   if (state.isLoading || !state.currentWord) {

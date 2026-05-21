@@ -81,6 +81,7 @@ class GameAPI {
     try {
       const response = await this.client.post<ApiResponse<void>>(`/api/games/${gameId}/skip-word`, {
         wordId: payload.wordId,
+        difficultyRating: payload.difficultyRating,
       });
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to skip word');
