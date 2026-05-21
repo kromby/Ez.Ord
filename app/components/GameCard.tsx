@@ -8,8 +8,10 @@ interface GameCardProps {
 }
 
 export function GameCard({ word, theme }: GameCardProps) {
-  // Adjust font size based on word length
-  const fontSize = word.length > 12 ? 48 : 64;
+  const fontSize =
+    word.length > 19 ? 28 :
+    word.length > 14 ? 36 :
+    word.length > 10 ? 48 : 64;
 
   return (
     <View
@@ -33,6 +35,9 @@ export function GameCard({ word, theme }: GameCardProps) {
           color: theme.text,
           textAlign: 'center',
         }}
+        numberOfLines={2}
+        adjustsFontSizeToFit
+        minimumFontScale={0.5}
       >
         {word}
       </Text>
