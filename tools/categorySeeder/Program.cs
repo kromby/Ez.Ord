@@ -59,7 +59,8 @@ internal class Program
     private static TableServiceClient BuildClient(string input, out string description)
     {
         if (Uri.TryCreate(input, UriKind.Absolute, out var uri)
-            && (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp))
+            && (uri.Scheme == Uri.UriSchemeHttps
+                || (uri.Scheme == Uri.UriSchemeHttp && uri.IsLoopback)))
         {
             description = $"endpoint {uri.GetLeftPart(UriPartial.Path)} (SAS={(string.IsNullOrEmpty(uri.Query) ? "no" : "yes")})";
             return new TableServiceClient(uri);

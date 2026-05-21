@@ -13,9 +13,16 @@ export default function SetupScreen() {
   const { game: gameParam } = useLocalSearchParams<{ game: string }>();
   const { state, dispatch, startGameAsync, loadCategoriesAsync } = useGameState();
   const [isStarting, setIsStarting] = useState(false);
+  const [isCategoriesLoading, setIsCategoriesLoading] = useState(true);
 
   useEffect(() => {
-    loadCategoriesAsync();
+    let active = true;
+    (async () => {
+      setIsCategoriesLoading(true);
+      await loadCategoriesAsync();
+      if (active) setIsCategoriesLoading(false);
+    })();
+    return () => { active = false; };
   }, [loadCategoriesAsync]);
 
   useEffect(() => {
@@ -114,11 +121,17 @@ export default function SetupScreen() {
         <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 10, color: tk.inkSoft, letterSpacing: 1.5, marginBottom: 10, textTransform: 'uppercase' }}>
           · Orðaflokkar · {selectedCatsCount}/{totalCatsCount}
         </Text>
-        {totalCatsCount === 0 ? (
+        {isCategoriesLoading ? (
           <View style={{ paddingVertical: 16, marginBottom: 28, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <ActivityIndicator color={tk.inkSoft} />
             <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 11, color: tk.inkSoft }}>
               Sæki flokka…
+            </Text>
+          </View>
+        ) : totalCatsCount === 0 ? (
+          <View style={{ paddingVertical: 16, marginBottom: 28 }}>
+            <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 11, color: tk.inkSoft }}>
+              Engir virkir flokkar fundust.
             </Text>
           </View>
         ) : (

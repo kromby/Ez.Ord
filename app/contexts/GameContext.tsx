@@ -229,6 +229,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(gameReducer, INITIAL_STATE);
 
   const loadCategoriesAsync = useCallback(async () => {
+    dispatch({ type: 'SET_ERROR', payload: null });
     try {
       const categories = await gameAPI.getCategories();
       dispatch({ type: 'SET_AVAILABLE_CATEGORIES', payload: categories });
