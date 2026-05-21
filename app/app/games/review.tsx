@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useGameState } from '@/hooks/useGameState';
 import { COLORS } from '@/constants/gameTokens';
 import { Stone } from '@/components/Stone';
@@ -8,7 +8,9 @@ import { RuneStrip } from '@/components/RuneStrip';
 
 export default function ReviewScreen() {
   const router = useRouter();
-  const { state, rateWordAsync, endGameAsync, prefetchNextWordAsync } = useGameState();
+  const { intent } = useLocalSearchParams<{ intent?: 'rate' | 'skip' }>();
+  const isSkip = intent === 'skip';
+  const { state, rateWordAsync, skipWordAsync, endGameAsync, prefetchNextWordAsync } = useGameState();
   const tk = COLORS.parchment;
   const word = state.currentWord;
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -27,7 +29,11 @@ export default function ReviewScreen() {
     if (!word || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      await rateWordAsync(rating);
+      if (isSkip) {
+        await skipWordAsync(rating);
+      } else {
+        await rateWordAsync(rating);
+      }
       await new Promise((resolve) => setTimeout(resolve, 220));
       router.back();
     } finally {
@@ -75,7 +81,7 @@ export default function ReviewScreen() {
             <RuneStrip tk={tk} />
           </View>
           <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 10, letterSpacing: 1.5, color: tk.inkSoft, textTransform: 'uppercase' }}>
-            Orðið var
+            {isSkip ? 'Sleppti orðinu' : 'Orðið var'}
           </Text>
           <Text style={{ fontFamily: 'DMSerifDisplay_400Regular', fontSize, lineHeight: fontSize * 1.05, fontWeight: '700', color: tk.ink, letterSpacing: -1.5, marginTop: 6 }}>
             {word?.word ?? '—'}

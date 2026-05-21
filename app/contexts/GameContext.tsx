@@ -5,7 +5,7 @@ import type { Category, GameSetupParams, Word } from '@/app/types/game';
 
 // Type definitions
 export type GameType = 'teikna' | 'utskyra' | 'leika';
-export type Rating = 'easy' | 'medium' | 'hard' | 'skipped';
+export type Rating = 'easy' | 'medium' | 'hard';
 export type Route = 'menu' | 'game' | 'review' | 'summary';
 
 // Interfaces
@@ -14,6 +14,7 @@ export interface PlayedWord {
   word: string;
   category: string;
   rating: Rating;
+  skipped: boolean;
 }
 
 export interface GameState {
@@ -27,6 +28,7 @@ export interface GameState {
   currentWord: Word | null;
   nextWord: Word | null;
   currentRating: Rating | null;
+  currentSkipped: boolean;
   isLoading: boolean;
   error: string | null;
 }
@@ -43,6 +45,7 @@ export const INITIAL_STATE: GameState = {
   currentWord: null,
   nextWord: null,
   currentRating: null,
+  currentSkipped: false,
   isLoading: false,
   error: null,
 };
@@ -56,6 +59,7 @@ export type GameAction =
   | { type: 'START_GAME_SUCCESS'; payload: string }
   | { type: 'GO_TO_REVIEW' }
   | { type: 'SET_RATING'; payload: Rating }
+  | { type: 'SET_SKIPPED'; payload: boolean }
   | { type: 'SET_CURRENT_WORD'; payload: Word | null }
   | { type: 'SET_NEXT_WORD'; payload: Word | null }
   | { type: 'NEXT_WORD' }
@@ -128,6 +132,12 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         currentRating: action.payload,
       };
 
+    case 'SET_SKIPPED':
+      return {
+        ...state,
+        currentSkipped: action.payload,
+      };
+
     case 'SET_CURRENT_WORD':
       return {
         ...state,
@@ -149,7 +159,8 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         id: state.currentWord.wordId,
         word: state.currentWord.word,
         category: state.currentWord.category,
-        rating: state.currentRating || 'skipped',
+        rating: state.currentRating || 'medium',
+        skipped: state.currentSkipped,
       };
 
       return {
@@ -159,6 +170,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         currentWord: state.nextWord,
         nextWord: null,
         currentRating: null,
+        currentSkipped: false,
       };
     }
 
@@ -171,6 +183,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         currentWord: null,
         nextWord: null,
         currentRating: null,
+        currentSkipped: false,
       };
 
     case 'END_GAME':
@@ -183,6 +196,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         currentWord: null,
         nextWord: null,
         currentRating: null,
+        currentSkipped: false,
       };
 
     case 'GO_TO_MENU':
@@ -195,6 +209,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         currentWord: null,
         nextWord: null,
         currentRating: null,
+        currentSkipped: false,
       };
 
     case 'SET_LOADING':
@@ -223,7 +238,7 @@ interface GameContextType {
   fetchNextWordAsync: () => Promise<void>;
   prefetchNextWordAsync: () => Promise<void>;
   rateWordAsync: (rating: Rating) => Promise<void>;
-  skipWordAsync: () => Promise<void>;
+  skipWordAsync: (rating: Rating) => Promise<void>;
   endGameAsync: () => Promise<void>;
 }
 
@@ -316,13 +331,12 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     if (!state.gameId || !state.currentWord) return;
 
     dispatch({ type: 'SET_RATING', payload: rating });
+    dispatch({ type: 'SET_SKIPPED', payload: false });
     try {
-      if (rating !== 'skipped') {
-        await gameAPI.rateWord(state.gameId, {
-          wordId: state.currentWord.wordId,
-          difficultyRating: rating as 'easy' | 'medium' | 'hard',
-        });
-      }
+      await gameAPI.rateWord(state.gameId, {
+        wordId: state.currentWord.wordId,
+        difficultyRating: rating,
+      });
       dispatch({ type: 'NEXT_WORD' });
     } catch (error) {
       dispatch({
@@ -332,12 +346,16 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     }
   }, [state.gameId, state.currentWord]);
 
-  const skipWordAsync = useCallback(async () => {
+  const skipWordAsync = useCallback(async (rating: Rating) => {
     if (!state.gameId || !state.currentWord) return;
 
+    dispatch({ type: 'SET_RATING', payload: rating });
+    dispatch({ type: 'SET_SKIPPED', payload: true });
     try {
-      await gameAPI.skipWord(state.gameId, { wordId: state.currentWord.wordId });
-      dispatch({ type: 'SET_RATING', payload: 'skipped' });
+      await gameAPI.skipWord(state.gameId, {
+        wordId: state.currentWord.wordId,
+        difficultyRating: rating,
+      });
       dispatch({ type: 'NEXT_WORD' });
     } catch (error) {
       dispatch({

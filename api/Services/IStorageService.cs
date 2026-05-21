@@ -22,5 +22,10 @@ namespace EzOrd.Services
         Task UpdateWordUsageAsync(WordEntity word);
 
         Task<List<CategoryEntity>> GetEnabledCategoriesAsync();
+
+        Task<List<WordTypeEntity>> GetEnabledWordTypesAsync();
+        Task<WordTypeEntity?> GetWordTypeAsync(string wordClass, string typeCode);
+        Task<string?> GetCategoryNameByWordClassAsync(string wordClass);
+        Task SeedWordTypesAsync(IReadOnlyDictionary<string, string> knownNames);
     }
 }

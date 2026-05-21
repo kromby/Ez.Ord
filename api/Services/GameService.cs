@@ -78,6 +78,10 @@ namespace EzOrd.Services
             var random = new Random();
             var selectedWord = words[random.Next(words.Count)];
 
+            // Resolve category display name and type name
+            var categoryName = await _storage.GetCategoryNameByWordClassAsync(selectedWord.PartitionKey);
+            var wordType = await _storage.GetWordTypeAsync(selectedWord.PartitionKey, selectedWord.Category);
+
             // Create GameWord entry
             var sequence = await _storage.GetGameWordCountAsync(gameId);
             var gameWord = new GameWordEntity
@@ -87,7 +91,7 @@ namespace EzOrd.Services
                 Sequence = sequence,
                 WordId = selectedWord.RowKey,
                 Word = selectedWord.Word,
-                Category = selectedWord.Category,
+                Category = categoryName ?? selectedWord.PartitionKey,
                 DrawnAt = DateTime.UtcNow
             };
 
@@ -99,7 +103,8 @@ namespace EzOrd.Services
             return new WordResponse
             {
                 Word = selectedWord.Word,
-                Category = selectedWord.Category,
+                Category = categoryName ?? selectedWord.PartitionKey,
+                TypeName = wordType?.Name ?? string.Empty,
                 WordId = selectedWord.RowKey
             };
         }
@@ -113,11 +118,14 @@ namespace EzOrd.Services
             if (game.EndedAt.HasValue)
                 throw new InvalidOperationException("Game has already ended");
 
+            ValidateDifficulty(request.DifficultyRating);
+
             var rating = new WordRatingEntity
             {
                 PartitionKey = request.WordId,
                 RowKey = gameId,
                 Difficulty = request.DifficultyRating,
+                Skipped = false,
                 GameType = game.GameType,
                 RatedAt = DateTime.UtcNow
             };
@@ -125,7 +133,7 @@ namespace EzOrd.Services
             await _storage.InsertRatingAsync(rating);
         }
 
-        // Skip a word
+        // Skip a word — difficulty is still required so we can capture why it was skipped
         public async Task SkipWordAsync(string gameId, SkipWordRequest request)
         {
             var game = await _storage.GetGameAsync(gameId);
@@ -134,16 +142,25 @@ namespace EzOrd.Services
             if (game.EndedAt.HasValue)
                 throw new InvalidOperationException("Game has already ended");
 
+            ValidateDifficulty(request.DifficultyRating);
+
             var rating = new WordRatingEntity
             {
                 PartitionKey = request.WordId,
                 RowKey = gameId,
-                Difficulty = "skipped",
+                Difficulty = request.DifficultyRating,
+                Skipped = true,
                 GameType = game.GameType,
                 RatedAt = DateTime.UtcNow
             };
 
             await _storage.InsertRatingAsync(rating);
+        }
+
+        private static void ValidateDifficulty(string difficulty)
+        {
+            if (difficulty != "easy" && difficulty != "medium" && difficulty != "hard")
+                throw new InvalidOperationException("Difficulty must be one of: easy, medium, hard.");
         }
 
         // End a game
@@ -189,7 +206,8 @@ namespace EzOrd.Services
                     Word = gw.Word,
                     Category = gw.Category,
                     DrawnAt = gw.DrawnAt,
-                    Rating = rating?.Difficulty
+                    Rating = rating?.Difficulty,
+                    Skipped = rating?.Skipped ?? false
                 });
             }
 
