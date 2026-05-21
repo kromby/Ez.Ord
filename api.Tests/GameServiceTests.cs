@@ -193,6 +193,12 @@ namespace EzOrd.Tests
             _mockStorageService
                 .Setup(s => s.GetGameWordCountAsync(gameId))
                 .ReturnsAsync(0);
+            _mockStorageService
+                .Setup(s => s.GetCategoryNameByWordClassAsync("hk"))
+                .ReturnsAsync("Nafnorð");
+            _mockStorageService
+                .Setup(s => s.GetWordTypeAsync("hk", "hk"))
+                .ReturnsAsync(new WordTypeEntity { PartitionKey = "hk", RowKey = "alm", Name = "Almennt orð", Enabled = true });
 
             // Act
             var result = await _gameService.GetNextWordAsync(gameId);
@@ -200,7 +206,8 @@ namespace EzOrd.Tests
             // Assert
             Assert.NotNull(result);
             Assert.Equal("hestur", result.Word);
-            Assert.Equal("hk", result.Category);
+            Assert.Equal("Nafnorð", result.Category);
+            Assert.Equal("Almennt orð", result.TypeName);
             Assert.Equal("word1", result.WordId);
         }
 

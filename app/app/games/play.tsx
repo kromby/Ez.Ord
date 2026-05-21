@@ -68,8 +68,8 @@ export default function PlayScreen() {
           <Text style={{ fontFamily: 'DMSerifDisplay_400Regular', fontSize, lineHeight: fontSize * 1.2, fontWeight: '700', color: tk.ink, letterSpacing: -2, marginVertical: 20 }}>
             {word.word}
           </Text>
-          <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 12, color: tk.inkSoft, letterSpacing: 1.2, textTransform: 'uppercase' }}>
-            {word.category}
+          <Text style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 12, color: tk.inkSoft, letterSpacing: 1.2 }}>
+            {word.typeName ? `${word.category} - ${word.typeName}` : word.category}
           </Text>
         </Stone>
       </View>

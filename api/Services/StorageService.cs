@@ -12,6 +12,20 @@ namespace EzOrd.Services
         private TableClient _wordRatingsTable = null!;
         private TableClient _wordsTable = null!;
         private TableClient _categoriesTable = null!;
+        private TableClient _wordTypesTable = null!;
+
+        private static readonly IReadOnlyDictionary<string, string> KnownTypeNames = new Dictionary<string, string>
+        {
+            ["alm"] = "Almennt orð",
+            ["ism"] = "Eiginnafn",
+            ["föð"] = "Föðurnafn",
+            ["móð"] = "Móðurnafn",
+            ["örn"] = "Örnefni",
+            ["tölv"] = "Tölvumál",
+            ["tung"] = "Tungumál",
+            ["íþr"] = "Íþróttamál",
+            ["fjár"] = "Fjármál"
+        };
 
         public StorageService(TableServiceClient tableServiceClient)
         {
@@ -25,12 +39,16 @@ namespace EzOrd.Services
             _wordRatingsTable = _tableServiceClient.GetTableClient("WordRatings");
             _wordsTable = _tableServiceClient.GetTableClient("Words");
             _categoriesTable = _tableServiceClient.GetTableClient("Categories");
+            _wordTypesTable = _tableServiceClient.GetTableClient("WordTypes");
 
             await _gamesTable.CreateIfNotExistsAsync();
             await _gameWordsTable.CreateIfNotExistsAsync();
             await _wordRatingsTable.CreateIfNotExistsAsync();
             await _wordsTable.CreateIfNotExistsAsync();
             await _categoriesTable.CreateIfNotExistsAsync();
+            await _wordTypesTable.CreateIfNotExistsAsync();
+
+            await SeedWordTypesAsync(KnownTypeNames);
         }
 
         // Games
@@ -141,6 +159,70 @@ namespace EzOrd.Services
                 results.Add(item);
             }
             return results;
+        }
+
+        // WordTypes
+        public async Task<List<WordTypeEntity>> GetEnabledWordTypesAsync()
+        {
+            var query = _wordTypesTable.QueryAsync<WordTypeEntity>(t => t.Enabled);
+            var results = new List<WordTypeEntity>();
+            await foreach (var item in query)
+            {
+                results.Add(item);
+            }
+            return results;
+        }
+
+        public async Task<WordTypeEntity?> GetWordTypeAsync(string wordClass, string typeCode)
+        {
+            try
+            {
+                return await _wordTypesTable.GetEntityAsync<WordTypeEntity>(wordClass, typeCode);
+            }
+            catch (RequestFailedException ex) when (ex.Status == 404)
+            {
+                return null;
+            }
+        }
+
+        public async Task<string?> GetCategoryNameByWordClassAsync(string wordClass)
+        {
+            var query = _categoriesTable.QueryAsync<CategoryEntity>(c => c.RowKey == wordClass);
+            await foreach (var item in query)
+            {
+                return item.Name;
+            }
+            return null;
+        }
+
+        public async Task SeedWordTypesAsync(IReadOnlyDictionary<string, string> knownNames)
+        {
+            var seen = new HashSet<(string, string)>();
+            var wordQuery = _wordsTable.QueryAsync<WordEntity>(
+                select: new[] { "PartitionKey", "Category" });
+
+            await foreach (var word in wordQuery)
+            {
+                var key = (word.PartitionKey, word.Category);
+                if (!seen.Add(key) || string.IsNullOrEmpty(word.Category))
+                    continue;
+
+                try
+                {
+                    await _wordTypesTable.GetEntityAsync<WordTypeEntity>(word.PartitionKey, word.Category);
+                }
+                catch (RequestFailedException ex) when (ex.Status == 404)
+                {
+                    var name = knownNames.TryGetValue(word.Category, out var n) ? n : word.Category;
+                    await _wordTypesTable.AddEntityAsync(new WordTypeEntity
+                    {
+                        PartitionKey = word.PartitionKey,
+                        RowKey = word.Category,
+                        Name = name,
+                        Enabled = true
+                    });
+                }
+            }
         }
     }
 }
