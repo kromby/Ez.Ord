@@ -40,6 +40,7 @@ export default function Index() {
   const handleStart = async () => {
     if (!canStart) return;
     const selectedCategoryIds = Object.keys(state.selectedCategories).filter(id => state.selectedCategories[id]);
+    dispatch({ type: 'SET_ERROR', payload: null });
     setIsStarting(true);
     try {
       await startGameAsync(state.game!, selectedCategoryIds);

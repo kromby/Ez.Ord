@@ -222,6 +222,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       return {
         ...state,
         error: action.payload,
+        isLoading: false,
       };
 
     default:
