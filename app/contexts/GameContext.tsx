@@ -1,4 +1,4 @@
-import React, { createContext, useReducer, ReactNode, useCallback } from 'react';
+import React, { createContext, useReducer, ReactNode, useCallback, useRef } from 'react';
 
 import gameAPI from '@/app/services/api';
 import type { Category, GameSetupParams, Word } from '@/app/types/game';
@@ -26,6 +26,7 @@ export interface GameState {
   wordIndex: number;
   playedWords: PlayedWord[];
   currentWord: Word | null;
+  nextWord: Word | null;
   currentRating: Rating | null;
   currentSkipped: boolean;
   isLoading: boolean;
@@ -42,6 +43,7 @@ export const INITIAL_STATE: GameState = {
   wordIndex: 0,
   playedWords: [],
   currentWord: null,
+  nextWord: null,
   currentRating: null,
   currentSkipped: false,
   isLoading: false,
@@ -59,6 +61,7 @@ export type GameAction =
   | { type: 'SET_RATING'; payload: Rating }
   | { type: 'SET_SKIPPED'; payload: boolean }
   | { type: 'SET_CURRENT_WORD'; payload: Word | null }
+  | { type: 'SET_NEXT_WORD'; payload: Word | null }
   | { type: 'NEXT_WORD' }
   | { type: 'PLAY_AGAIN' }
   | { type: 'END_GAME' }
@@ -110,6 +113,8 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         gameId: action.payload,
         wordIndex: 0,
         playedWords: [],
+        currentWord: null,
+        nextWord: null,
         currentRating: null,
         isLoading: false,
         error: null,
@@ -139,6 +144,12 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         currentWord: action.payload,
       };
 
+    case 'SET_NEXT_WORD':
+      return {
+        ...state,
+        nextWord: action.payload,
+      };
+
     case 'NEXT_WORD': {
       if (!state.currentWord) {
         return state;
@@ -156,7 +167,8 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         ...state,
         playedWords: [...state.playedWords, newPlayedWord],
         wordIndex: state.wordIndex + 1,
-        currentWord: null,
+        currentWord: state.nextWord,
+        nextWord: null,
         currentRating: null,
         currentSkipped: false,
       };
@@ -169,6 +181,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         wordIndex: 0,
         playedWords: [],
         currentWord: null,
+        nextWord: null,
         currentRating: null,
         currentSkipped: false,
       };
@@ -180,6 +193,8 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         game: null,
         wordIndex: 0,
         playedWords: [],
+        currentWord: null,
+        nextWord: null,
         currentRating: null,
         currentSkipped: false,
       };
@@ -191,6 +206,8 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         game: null,
         wordIndex: 0,
         playedWords: [],
+        currentWord: null,
+        nextWord: null,
         currentRating: null,
         currentSkipped: false,
       };
@@ -219,6 +236,7 @@ interface GameContextType {
   startGameAsync: (gameType: GameType, categories: string[]) => Promise<void>;
   loadCategoriesAsync: () => Promise<void>;
   fetchNextWordAsync: () => Promise<void>;
+  prefetchNextWordAsync: () => Promise<void>;
   rateWordAsync: (rating: Rating) => Promise<void>;
   skipWordAsync: (rating: Rating) => Promise<void>;
   endGameAsync: () => Promise<void>;
@@ -230,6 +248,7 @@ export const GameContext = createContext<GameContextType>({
   startGameAsync: async () => {},
   loadCategoriesAsync: async () => {},
   fetchNextWordAsync: async () => {},
+  prefetchNextWordAsync: async () => {},
   rateWordAsync: async () => {},
   skipWordAsync: async () => {},
   endGameAsync: async () => {},
@@ -242,6 +261,9 @@ export interface GameProviderProps {
 
 export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(gameReducer, INITIAL_STATE);
+  const isPrefetchingRef = useRef(false);
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   const loadCategoriesAsync = useCallback(async () => {
     dispatch({ type: 'SET_ERROR', payload: null });
@@ -289,6 +311,21 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
   }, [state.gameId]);
+
+  const prefetchNextWordAsync = useCallback(async () => {
+    const { gameId, nextWord } = stateRef.current;
+    if (!gameId || nextWord || isPrefetchingRef.current) return;
+
+    isPrefetchingRef.current = true;
+    try {
+      const word = await gameAPI.getNextWord(gameId);
+      dispatch({ type: 'SET_NEXT_WORD', payload: word });
+    } catch {
+      // Silent: foreground fetch in play.tsx will fall back if buffer is empty.
+    } finally {
+      isPrefetchingRef.current = false;
+    }
+  }, []);
 
   const rateWordAsync = useCallback(async (rating: Rating) => {
     if (!state.gameId || !state.currentWord) return;
@@ -350,6 +387,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
         startGameAsync,
         loadCategoriesAsync,
         fetchNextWordAsync,
+        prefetchNextWordAsync,
         rateWordAsync,
         skipWordAsync,
         endGameAsync,
