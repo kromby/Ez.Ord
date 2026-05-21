@@ -1,5 +1,11 @@
 version = 1
 
+test_patterns = [
+  "api.Tests/**",
+  "app/__tests__/**",
+  "app/components/__tests__/**"
+]
+
 [[analyzers]]
 name = "csharp"
 
