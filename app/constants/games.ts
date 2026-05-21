@@ -5,19 +5,19 @@ const GAMES = [
     id: 'teikna',
     label: 'Teikna',
     icon: '🎨',
-    description: 'Draw and guess pictures',
+    description: 'Teiknaðu og gissaðu myndir',
   },
   {
     id: 'utskyra',
     label: 'Útskýra',
     icon: '💬',
-    description: 'Explain words without showing them',
+    description: 'Útskýrðu orð án þess að sýna þau',
   },
   {
     id: 'leika',
     label: 'Leika',
     icon: '🎭',
-    description: 'Act out words for others to guess',
+    description: 'Leikaðu orð upp fyrir aðra að giska á',
   },
 ] as const;
 

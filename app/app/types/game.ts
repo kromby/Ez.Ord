@@ -30,6 +30,7 @@ export interface RatingPayload {
 
 export interface SkipPayload {
   wordId: string;
+  difficultyRating: 'easy' | 'medium' | 'hard';
 }
 
 export interface GameWordDetails {
@@ -37,7 +38,8 @@ export interface GameWordDetails {
   word: string;
   category: string;
   drawnAt: string;
-  rating?: 'easy' | 'medium' | 'hard' | 'skipped';
+  rating?: 'easy' | 'medium' | 'hard';
+  skipped: boolean;
 }
 
 export interface GameSummary {

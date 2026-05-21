@@ -10,7 +10,8 @@ public class WordRatingEntity : ITableEntity
     public DateTimeOffset? Timestamp { get; set; }
     public ETag ETag { get; set; }
 
-    public string Difficulty { get; set; } = string.Empty; // easy, medium, hard, skipped
+    public string Difficulty { get; set; } = string.Empty; // easy, medium, hard
+    public bool Skipped { get; set; } // true if the player chose to skip; difficulty is still recorded
     public string GameType { get; set; } = string.Empty;
     public DateTime RatedAt { get; set; }
 }

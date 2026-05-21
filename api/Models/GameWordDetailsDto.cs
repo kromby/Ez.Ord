@@ -6,5 +6,6 @@ public class GameWordDetailsDto
     public string Word { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
     public DateTime DrawnAt { get; set; }
-    public string? Rating { get; set; } // easy, medium, hard, skipped, or null if not rated
+    public string? Rating { get; set; } // easy, medium, hard, or null if not rated
+    public bool Skipped { get; set; }
 }
