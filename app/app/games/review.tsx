@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useGameState } from '@/hooks/useGameState';
@@ -8,10 +8,14 @@ import { RuneStrip } from '@/components/RuneStrip';
 
 export default function ReviewScreen() {
   const router = useRouter();
-  const { state, rateWordAsync, endGameAsync } = useGameState();
+  const { state, rateWordAsync, endGameAsync, prefetchNextWordAsync } = useGameState();
   const tk = COLORS.parchment;
   const word = state.currentWord;
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    prefetchNextWordAsync();
+  }, [prefetchNextWordAsync]);
 
   const ratings = [
     { id: 'easy' as const, label: 'Létt', color: tk.forest, glyph: '·' },
@@ -25,7 +29,7 @@ export default function ReviewScreen() {
     try {
       await rateWordAsync(rating);
       await new Promise((resolve) => setTimeout(resolve, 220));
-      router.push('./play');
+      router.back();
     } finally {
       setIsSubmitting(false);
     }
@@ -51,7 +55,7 @@ export default function ReviewScreen() {
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
           <Text
             onPress={() => {
-              router.push('./play');
+              router.back();
             }}
             style={{ fontFamily: 'JetBrainsMono_400Regular', fontSize: 10, color: tk.inkSoft, letterSpacing: 1.4, textTransform: 'uppercase' }}
           >
