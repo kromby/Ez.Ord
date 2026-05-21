@@ -19,7 +19,7 @@ public class WordTypesFunctions
     }
 
     [Function("GetWordTypes")]
-    public async Task<IActionResult> GetWordTypes(
+    public async Task<IActionResult> GetWordTypesAsync(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "word-types")] HttpRequest req)
     {
         try
