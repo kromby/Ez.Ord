@@ -11,6 +11,7 @@ namespace EzOrd.Services
         private TableClient _gameWordsTable = null!;
         private TableClient _wordRatingsTable = null!;
         private TableClient _wordsTable = null!;
+        private TableClient _categoriesTable = null!;
 
         public StorageService(TableServiceClient tableServiceClient)
         {
@@ -23,11 +24,13 @@ namespace EzOrd.Services
             _gameWordsTable = _tableServiceClient.GetTableClient("GameWords");
             _wordRatingsTable = _tableServiceClient.GetTableClient("WordRatings");
             _wordsTable = _tableServiceClient.GetTableClient("Words");
+            _categoriesTable = _tableServiceClient.GetTableClient("Categories");
 
             await _gamesTable.CreateIfNotExistsAsync();
             await _gameWordsTable.CreateIfNotExistsAsync();
             await _wordRatingsTable.CreateIfNotExistsAsync();
             await _wordsTable.CreateIfNotExistsAsync();
+            await _categoriesTable.CreateIfNotExistsAsync();
         }
 
         // Games
@@ -109,12 +112,12 @@ namespace EzOrd.Services
             }
         }
 
-        public async Task<List<WordEntity>> GetWordsByCategoriesAsync(List<string> categories)
+        public async Task<List<WordEntity>> GetWordsByCategoriesAsync(List<string> wordClasses)
         {
             var results = new List<WordEntity>();
-            foreach (var category in categories)
+            foreach (var wordClass in wordClasses)
             {
-                var query = _wordsTable.QueryAsync<WordEntity>(w => w.PartitionKey == category);
+                var query = _wordsTable.QueryAsync<WordEntity>(w => w.PartitionKey == wordClass);
                 await foreach (var item in query)
                 {
                     results.Add(item);
@@ -129,15 +132,15 @@ namespace EzOrd.Services
             await _wordsTable.UpdateEntityAsync(word, word.ETag);
         }
 
-        public async Task<List<string>> GetCategoriesAsync()
+        public async Task<List<CategoryEntity>> GetEnabledCategoriesAsync()
         {
-            var query = _wordsTable.QueryAsync<WordEntity>();
-            var categories = new HashSet<string>();
+            var query = _categoriesTable.QueryAsync<CategoryEntity>(c => c.Enabled);
+            var results = new List<CategoryEntity>();
             await foreach (var item in query)
             {
-                categories.Add(item.Category);
+                results.Add(item);
             }
-            return categories.OrderBy(c => c).ToList();
+            return results;
         }
     }
 }

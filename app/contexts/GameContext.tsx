@@ -1,11 +1,9 @@
 import React, { createContext, useReducer, ReactNode, useCallback } from 'react';
 
-import { type Category } from '@/constants/words';
 import gameAPI from '@/app/services/api';
-import type { GameSetupParams, Word } from '@/app/types/game';
+import type { Category, GameSetupParams, Word } from '@/app/types/game';
 
 // Type definitions
-export type { Category };
 export type GameType = 'teikna' | 'utskyra' | 'leika';
 export type Rating = 'easy' | 'medium' | 'hard' | 'skipped';
 export type Route = 'menu' | 'game' | 'review' | 'summary';
@@ -14,7 +12,7 @@ export type Route = 'menu' | 'game' | 'review' | 'summary';
 export interface PlayedWord {
   id: string;
   word: string;
-  category: Category;
+  category: string;
   rating: Rating;
 }
 
@@ -22,7 +20,8 @@ export interface GameState {
   route: Route;
   game: GameType | null;
   gameId: string | null;
-  categories: Record<Category, boolean>;
+  availableCategories: Category[];
+  selectedCategories: Record<string, boolean>;
   wordIndex: number;
   playedWords: PlayedWord[];
   currentWord: Word | null;
@@ -36,12 +35,8 @@ export const INITIAL_STATE: GameState = {
   route: 'menu',
   game: null,
   gameId: null,
-  categories: {
-    nafn: true,
-    sagn: true,
-    lys: true,
-    orne: true,
-  },
+  availableCategories: [],
+  selectedCategories: {},
   wordIndex: 0,
   playedWords: [],
   currentWord: null,
@@ -53,7 +48,8 @@ export const INITIAL_STATE: GameState = {
 // Action types
 export type GameAction =
   | { type: 'SET_GAME'; payload: GameType }
-  | { type: 'TOGGLE_CATEGORY'; payload: Category }
+  | { type: 'SET_AVAILABLE_CATEGORIES'; payload: Category[] }
+  | { type: 'TOGGLE_CATEGORY'; payload: string }
   | { type: 'START_GAME' }
   | { type: 'START_GAME_SUCCESS'; payload: string }
   | { type: 'GO_TO_REVIEW' }
@@ -75,12 +71,24 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         game: action.payload,
       };
 
+    case 'SET_AVAILABLE_CATEGORIES': {
+      const next: Record<string, boolean> = {};
+      for (const cat of action.payload) {
+        next[cat.id] = state.selectedCategories[cat.id] ?? true;
+      }
+      return {
+        ...state,
+        availableCategories: action.payload,
+        selectedCategories: next,
+      };
+    }
+
     case 'TOGGLE_CATEGORY':
       return {
         ...state,
-        categories: {
-          ...state.categories,
-          [action.payload]: !state.categories[action.payload],
+        selectedCategories: {
+          ...state.selectedCategories,
+          [action.payload]: !state.selectedCategories[action.payload],
         },
       };
 
@@ -129,7 +137,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       const newPlayedWord: PlayedWord = {
         id: state.currentWord.wordId,
         word: state.currentWord.word,
-        category: state.currentWord.category as Category,
+        category: state.currentWord.category,
         rating: state.currentRating || 'skipped',
       };
 
@@ -193,7 +201,8 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
 interface GameContextType {
   state: GameState;
   dispatch: React.Dispatch<GameAction>;
-  startGameAsync: (gameType: GameType, categories: Category[]) => Promise<void>;
+  startGameAsync: (gameType: GameType, categories: string[]) => Promise<void>;
+  loadCategoriesAsync: () => Promise<void>;
   fetchNextWordAsync: () => Promise<void>;
   rateWordAsync: (rating: Rating) => Promise<void>;
   skipWordAsync: () => Promise<void>;
@@ -204,6 +213,7 @@ export const GameContext = createContext<GameContextType>({
   state: INITIAL_STATE,
   dispatch: () => {},
   startGameAsync: async () => {},
+  loadCategoriesAsync: async () => {},
   fetchNextWordAsync: async () => {},
   rateWordAsync: async () => {},
   skipWordAsync: async () => {},
@@ -218,7 +228,20 @@ export interface GameProviderProps {
 export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(gameReducer, INITIAL_STATE);
 
-  const startGameAsync = useCallback(async (gameType: GameType, categories: Category[]) => {
+  const loadCategoriesAsync = useCallback(async () => {
+    dispatch({ type: 'SET_ERROR', payload: null });
+    try {
+      const categories = await gameAPI.getCategories();
+      dispatch({ type: 'SET_AVAILABLE_CATEGORIES', payload: categories });
+    } catch (error) {
+      dispatch({
+        type: 'SET_ERROR',
+        payload: error instanceof Error ? error.message : 'Failed to load categories',
+      });
+    }
+  }, []);
+
+  const startGameAsync = useCallback(async (gameType: GameType, categories: string[]) => {
     dispatch({ type: 'START_GAME' });
     try {
       const params: GameSetupParams = {
@@ -307,6 +330,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
         state,
         dispatch,
         startGameAsync,
+        loadCategoriesAsync,
         fetchNextWordAsync,
         rateWordAsync,
         skipWordAsync,

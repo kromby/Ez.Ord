@@ -24,12 +24,16 @@ namespace EzOrd.Functions
         {
             try
             {
-                var categoryNames = await _storageService.GetCategoriesAsync();
-                var categories = categoryNames.Select(name => new CategoryDto
-                {
-                    Id = name,
-                    Name = name
-                }).ToList();
+                var rows = await _storageService.GetEnabledCategoriesAsync();
+                var categories = rows
+                    .GroupBy(r => r.PartitionKey)
+                    .Select(g => new CategoryDto
+                    {
+                        Id = g.Key,
+                        Name = g.First().Name
+                    })
+                    .OrderBy(c => c.Name)
+                    .ToList();
 
                 return new OkObjectResult(new ApiResponse<CategoriesResponse>
                 {

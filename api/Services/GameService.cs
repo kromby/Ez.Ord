@@ -21,6 +21,17 @@ namespace EzOrd.Services
             if (request.Categories is null || request.Categories.Count == 0)
                 throw new ArgumentException("At least one category is required.", nameof(request));
 
+            var enabledRows = await _storage.GetEnabledCategoriesAsync();
+            var requested = new HashSet<string>(request.Categories, StringComparer.OrdinalIgnoreCase);
+            var wordClasses = enabledRows
+                .Where(r => requested.Contains(r.PartitionKey))
+                .Select(r => r.RowKey)
+                .Distinct()
+                .ToList();
+
+            if (wordClasses.Count == 0)
+                throw new InvalidOperationException("None of the selected categories are available.");
+
             var gameId = Guid.NewGuid().ToString();
             var now = DateTime.UtcNow;
 
@@ -29,6 +40,7 @@ namespace EzOrd.Services
                 RowKey = gameId,
                 GameType = request.GameType,
                 Categories = JsonSerializer.Serialize(request.Categories),
+                WordClasses = JsonSerializer.Serialize(wordClasses),
                 StartedAt = now,
                 UserId = null
             };
@@ -54,8 +66,10 @@ namespace EzOrd.Services
             if (game.EndedAt.HasValue)
                 throw new InvalidOperationException("Game has already ended");
 
-            var categories = JsonSerializer.Deserialize<List<string>>(game.Categories) ?? new();
-            var words = await _storage.GetWordsByCategoriesAsync(categories);
+            var wordClasses = !string.IsNullOrEmpty(game.WordClasses)
+                ? JsonSerializer.Deserialize<List<string>>(game.WordClasses) ?? new()
+                : new();
+            var words = await _storage.GetWordsByCategoriesAsync(wordClasses);
 
             if (words.Count == 0)
                 throw new InvalidOperationException("No words available in selected categories");
