@@ -45,6 +45,8 @@ namespace EzOrd.Services
             _wordsTable = _tableServiceClient.GetTableClient("Words");
             _categoriesTable = _tableServiceClient.GetTableClient("Categories");
             _wordTypesTable = _tableServiceClient.GetTableClient("WordTypes");
+            _lookupsTable = _tableServiceClient.GetTableClient("Lookups");
+            _wordDifficultiesTable = _tableServiceClient.GetTableClient("WordDifficulties");
 
             await _gamesTable.CreateIfNotExistsAsync();
             await _gameWordsTable.CreateIfNotExistsAsync();
@@ -52,8 +54,11 @@ namespace EzOrd.Services
             await _wordsTable.CreateIfNotExistsAsync();
             await _categoriesTable.CreateIfNotExistsAsync();
             await _wordTypesTable.CreateIfNotExistsAsync();
+            await _lookupsTable.CreateIfNotExistsAsync();
+            await _wordDifficultiesTable.CreateIfNotExistsAsync();
 
             await SeedWordTypesAsync(KnownTypeNames);
+            await SeedGameTypesAsync();
         }
 
         // Games
@@ -288,20 +293,92 @@ namespace EzOrd.Services
             }
         }
 
-        // Lookups (stubs — full implementation follows in next task)
-        public Task<LookupEntity?> GetLookupAsync(string partitionKey, string rowKey) =>
-            throw new NotImplementedException();
-        public Task<List<LookupEntity>> GetLookupsAsync(string partitionKey) =>
-            throw new NotImplementedException();
-        public Task<List<LookupEntity>> GetEnabledLookupsAsync(string partitionKey) =>
-            throw new NotImplementedException();
-        public Task UpsertLookupAsync(LookupEntity lookup) =>
-            throw new NotImplementedException();
+        private async Task SeedGameTypesAsync()
+        {
+            var seeds = new[]
+            {
+                new LookupEntity { PartitionKey = "gameType", RowKey = "drawing",     Name = "Teikna",  Description = "Teiknaðu orðið og láttu hina giska.",                    Enabled = true },
+                new LookupEntity { PartitionKey = "gameType", RowKey = "explanation", Name = "Útskýra", Description = "Útskýrðu orðið með orðum án þess að segja það.", Enabled = true },
+                new LookupEntity { PartitionKey = "gameType", RowKey = "acting",      Name = "Leika",   Description = "Leikið orðið og láttu hina giska.",                      Enabled = true },
+            };
 
-        // Word difficulties (stubs — full implementation follows in next task)
-        public Task<WordDifficultyEntity?> GetWordDifficultyAsync(string gameTypeCode, string wordId) =>
-            throw new NotImplementedException();
-        public Task UpsertWordDifficultyAsync(WordDifficultyEntity entity) =>
-            throw new NotImplementedException();
+            foreach (var seed in seeds)
+            {
+                try
+                {
+                    await _lookupsTable.GetEntityAsync<LookupEntity>(seed.PartitionKey, seed.RowKey);
+                }
+                catch (RequestFailedException ex) when (ex.Status == 404)
+                {
+                    var now = DateTime.UtcNow;
+                    seed.CreatedAt = now;
+                    seed.UpdatedAt = now;
+                    await _lookupsTable.AddEntityAsync(seed);
+                }
+            }
+        }
+
+        // Lookups
+        public async Task<LookupEntity?> GetLookupAsync(string partitionKey, string rowKey)
+        {
+            try
+            {
+                return await _lookupsTable.GetEntityAsync<LookupEntity>(partitionKey, rowKey);
+            }
+            catch (RequestFailedException ex) when (ex.Status == 404)
+            {
+                return null;
+            }
+        }
+
+        public async Task<List<LookupEntity>> GetLookupsAsync(string partitionKey)
+        {
+            var query = _lookupsTable.QueryAsync<LookupEntity>(e => e.PartitionKey == partitionKey);
+            var results = new List<LookupEntity>();
+            await foreach (var item in query)
+            {
+                results.Add(item);
+            }
+            return results;
+        }
+
+        public async Task<List<LookupEntity>> GetEnabledLookupsAsync(string partitionKey)
+        {
+            var query = _lookupsTable.QueryAsync<LookupEntity>(e => e.PartitionKey == partitionKey && e.Enabled);
+            var results = new List<LookupEntity>();
+            await foreach (var item in query)
+            {
+                results.Add(item);
+            }
+            return results;
+        }
+
+        public async Task UpsertLookupAsync(LookupEntity lookup)
+        {
+            var existing = await GetLookupAsync(lookup.PartitionKey, lookup.RowKey);
+            var now = DateTime.UtcNow;
+            lookup.CreatedAt = existing?.CreatedAt ?? now;
+            lookup.UpdatedAt = now;
+            await _lookupsTable.UpsertEntityAsync(lookup);
+        }
+
+        // Word difficulties
+        public async Task<WordDifficultyEntity?> GetWordDifficultyAsync(string gameTypeCode, string wordId)
+        {
+            try
+            {
+                return await _wordDifficultiesTable.GetEntityAsync<WordDifficultyEntity>(gameTypeCode, wordId);
+            }
+            catch (RequestFailedException ex) when (ex.Status == 404)
+            {
+                return null;
+            }
+        }
+
+        public async Task UpsertWordDifficultyAsync(WordDifficultyEntity entity)
+        {
+            entity.UpdatedAt = DateTime.UtcNow;
+            await _wordDifficultiesTable.UpsertEntityAsync(entity);
+        }
     }
 }
