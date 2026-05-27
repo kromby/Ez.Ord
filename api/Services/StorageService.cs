@@ -14,6 +14,8 @@ namespace EzOrd.Services
         private TableClient _wordsTable = null!;
         private TableClient _categoriesTable = null!;
         private TableClient _wordTypesTable = null!;
+        private TableClient _lookupsTable = null!;
+        private TableClient _wordDifficultiesTable = null!;
 
         private readonly ConcurrentDictionary<string, Lazy<Task<List<string>>>> _wordIdsByClass = new();
 
@@ -285,5 +287,21 @@ namespace EzOrd.Services
                 }
             }
         }
+
+        // Lookups (stubs — full implementation follows in next task)
+        public Task<LookupEntity?> GetLookupAsync(string partitionKey, string rowKey) =>
+            throw new NotImplementedException();
+        public Task<List<LookupEntity>> GetLookupsAsync(string partitionKey) =>
+            throw new NotImplementedException();
+        public Task<List<LookupEntity>> GetEnabledLookupsAsync(string partitionKey) =>
+            throw new NotImplementedException();
+        public Task UpsertLookupAsync(LookupEntity lookup) =>
+            throw new NotImplementedException();
+
+        // Word difficulties (stubs — full implementation follows in next task)
+        public Task<WordDifficultyEntity?> GetWordDifficultyAsync(string gameTypeCode, string wordId) =>
+            throw new NotImplementedException();
+        public Task UpsertWordDifficultyAsync(WordDifficultyEntity entity) =>
+            throw new NotImplementedException();
     }
 }
