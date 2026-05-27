@@ -16,6 +16,12 @@ export default function ReviewScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    if (!state.gameId) {
+      router.replace('/');
+    }
+  }, [state.gameId, router]);
+
+  useEffect(() => {
     prefetchNextWordAsync();
   }, [prefetchNextWordAsync]);
 

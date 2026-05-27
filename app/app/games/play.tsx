@@ -14,6 +14,12 @@ export default function PlayScreen() {
   const game = GAMES.find((g) => g.id === state.game) || GAMES[2];
 
   useEffect(() => {
+    if (!state.gameId) {
+      router.replace('/');
+    }
+  }, [state.gameId, router]);
+
+  useEffect(() => {
     if (!state.currentWord && state.gameId) {
       fetchNextWordAsync();
     }

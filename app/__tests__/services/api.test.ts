@@ -1,7 +1,6 @@
 import type { GameSetupParams, RatingPayload, SkipPayload, Game, Word, GameSummary } from '../../app/types/game';
 
 jest.mock('axios');
-const axios = require('axios');
 
 describe('GameAPI', () => {
   const mockGame: Game = {
@@ -37,7 +36,10 @@ describe('GameAPI', () => {
   let mockClient: any;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    // resetModules ensures each test loads a fresh API singleton so the
+    // newly-created mockClient is the one axios.create returns to the service.
+    jest.resetModules();
+    const axios = require('axios');
     mockClient = {
       post: jest.fn(),
       get: jest.fn(),
