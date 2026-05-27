@@ -57,8 +57,8 @@ namespace EzOrd.Services
             await _lookupsTable.CreateIfNotExistsAsync();
             await _wordDifficultiesTable.CreateIfNotExistsAsync();
 
-            await SeedWordTypesAsync(KnownTypeNames);
             await SeedGameTypesAsync();
+            await SeedWordTypesAsync(KnownTypeNames);
         }
 
         // Games
