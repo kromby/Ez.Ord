@@ -18,6 +18,10 @@ namespace EzOrd.Services
             if (string.IsNullOrWhiteSpace(request.GameType))
                 throw new ArgumentException("GameType is required.", nameof(request));
 
+            var gameTypeLookup = await _storage.GetLookupAsync("gameType", request.GameType);
+            if (gameTypeLookup == null || !gameTypeLookup.Enabled)
+                throw new InvalidOperationException("Unknown game type");
+
             if (request.Categories is null || request.Categories.Count == 0)
                 throw new ArgumentException("At least one category is required.", nameof(request));
 

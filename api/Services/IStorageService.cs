@@ -27,5 +27,15 @@ namespace EzOrd.Services
         Task<WordTypeEntity?> GetWordTypeAsync(string wordClass, string typeCode);
         Task<string?> GetCategoryNameByWordClassAsync(string wordClass);
         Task SeedWordTypesAsync(IReadOnlyDictionary<string, string> knownNames);
+
+        // Lookups
+        Task<LookupEntity?> GetLookupAsync(string partitionKey, string rowKey);
+        Task<List<LookupEntity>> GetLookupsAsync(string partitionKey);
+        Task<List<LookupEntity>> GetEnabledLookupsAsync(string partitionKey);
+        Task UpsertLookupAsync(LookupEntity lookup);
+
+        // Word difficulties
+        Task<WordDifficultyEntity?> GetWordDifficultyAsync(string gameTypeCode, string wordId);
+        Task UpsertWordDifficultyAsync(WordDifficultyEntity entity);
     }
 }

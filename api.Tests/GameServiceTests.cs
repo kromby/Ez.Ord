@@ -32,11 +32,24 @@ namespace EzOrd.Tests
                 .ReturnsAsync(entities);
         }
 
+        private void SetupGameTypeLookup(string gameType, bool enabled = true) =>
+            SetupGameTypeLookup(gameType, (bool?)enabled);
+
+        private void SetupGameTypeLookup(string gameType, bool? enabled)
+        {
+            _mockStorageService
+                .Setup(s => s.GetLookupAsync("gameType", gameType))
+                .ReturnsAsync(enabled.HasValue
+                    ? new LookupEntity { PartitionKey = "gameType", RowKey = gameType, Name = gameType, Enabled = enabled.Value }
+                    : (LookupEntity?)null);
+        }
+
         [Fact]
         public async Task StartGameAsync_ShouldCreateGameAndReturnGameId()
         {
             // Arrange
             SetupEnabledCategories(("nafnord", "hk"), ("sagnord", "so"));
+            SetupGameTypeLookup("drawing");
             var request = new GameStartRequest
             {
                 GameType = "drawing",
@@ -59,6 +72,7 @@ namespace EzOrd.Tests
         {
             // Arrange
             SetupEnabledCategories(("nafnord", "hk"));
+            SetupGameTypeLookup("drawing");
             var request = new GameStartRequest
             {
                 GameType = "drawing",
@@ -82,6 +96,7 @@ namespace EzOrd.Tests
                 ("nafnord", "hk"),
                 ("nafnord", "kk"),
                 ("sagnord", "so"));
+            SetupGameTypeLookup("drawing");
             var request = new GameStartRequest
             {
                 GameType = "drawing",
@@ -111,6 +126,7 @@ namespace EzOrd.Tests
         {
             // Arrange
             SetupEnabledCategories(("nafnord", "hk"));
+            SetupGameTypeLookup("drawing");
             var request = new GameStartRequest
             {
                 GameType = "drawing",
@@ -488,6 +504,40 @@ namespace EzOrd.Tests
             Assert.Single(result.Words);
             Assert.Equal("hestur", result.Words[0].Word);
             Assert.Equal("easy", result.Words[0].Rating);
+        }
+
+        [Fact]
+        public async Task StartGameAsync_ShouldThrowWhenGameTypeIsUnknown()
+        {
+            // Arrange
+            SetupEnabledCategories(("nafnord", "hk"));
+            SetupGameTypeLookup("unknown", null);
+            var request = new GameStartRequest
+            {
+                GameType = "unknown",
+                Categories = new List<string> { "nafnord" }
+            };
+
+            // Act & Assert
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => _gameService.StartGameAsync(request));
+        }
+
+        [Fact]
+        public async Task StartGameAsync_ShouldThrowWhenGameTypeIsDisabled()
+        {
+            // Arrange
+            SetupEnabledCategories(("nafnord", "hk"));
+            SetupGameTypeLookup("drawing", enabled: false);
+            var request = new GameStartRequest
+            {
+                GameType = "drawing",
+                Categories = new List<string> { "nafnord" }
+            };
+
+            // Act & Assert
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => _gameService.StartGameAsync(request));
         }
     }
 }

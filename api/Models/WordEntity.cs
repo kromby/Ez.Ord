@@ -13,5 +13,4 @@ public class WordEntity : ITableEntity
     public string Word { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
     public int UsageCount { get; set; } = 0;
-    public double? Rating { get; set; }
 }
