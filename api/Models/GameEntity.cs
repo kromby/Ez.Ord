@@ -15,5 +15,5 @@ public class GameEntity : ITableEntity
     public string Categories { get; set; } = string.Empty; // JSON array of friendly category IDs (e.g. nafnord)
     public string WordClasses { get; set; } = string.Empty; // JSON array of BIN word-class codes resolved at start (e.g. hk, kk)
     public string? UserId { get; set; }
-    public string GameType { get; set; } = string.Empty; // drawing, scrabble, word_explanation, acting
+    public string GameType { get; set; } = string.Empty; // drawing, explanation, acting
 }
