@@ -4,7 +4,7 @@ import gameAPI from '@/app/services/api';
 import type { Category, GameSetupParams, Word } from '@/app/types/game';
 
 // Type definitions
-export type GameType = 'teikna' | 'utskyra' | 'leika';
+export type GameType = 'drawing' | 'explanation' | 'acting';
 export type Rating = 'easy' | 'medium' | 'hard';
 export type Route = 'menu' | 'game' | 'review' | 'summary';
 

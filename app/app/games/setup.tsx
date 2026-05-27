@@ -27,7 +27,7 @@ export default function SetupScreen() {
 
   useEffect(() => {
     if (gameParam && GAMES.some(g => g.id === gameParam)) {
-      dispatch({ type: 'SET_GAME', payload: gameParam as 'teikna' | 'utskyra' | 'leika' });
+      dispatch({ type: 'SET_GAME', payload: gameParam as 'drawing' | 'explanation' | 'acting' });
     }
   }, [gameParam]);
 
@@ -48,7 +48,7 @@ export default function SetupScreen() {
   const totalCatsCount = state.availableCategories.length;
 
   const handleGameSelect = (gameId: string) => {
-    dispatch({ type: 'SET_GAME', payload: gameId as 'teikna' | 'utskyra' | 'leika' });
+    dispatch({ type: 'SET_GAME', payload: gameId as 'drawing' | 'explanation' | 'acting' });
   };
 
   const handleCategoryToggle = (catId: string) => {

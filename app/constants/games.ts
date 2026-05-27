@@ -2,19 +2,19 @@
 
 const GAMES = [
   {
-    id: 'teikna',
+    id: 'drawing',
     label: 'Teikna',
     icon: '🎨',
     description: 'Teiknaðu og skissaðu myndir',
   },
   {
-    id: 'utskyra',
+    id: 'explanation',
     label: 'Útskýra',
     icon: '💬',
     description: 'Útskýrðu orð án þess að nefna þau',
   },
   {
-    id: 'leika',
+    id: 'acting',
     label: 'Leika',
     icon: '🎭',
     description: 'Leiktu orð fyrir aðra að giska á',

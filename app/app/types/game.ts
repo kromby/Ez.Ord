@@ -1,6 +1,6 @@
 export interface Game {
   gameId: string;
-  gameType: 'drawing' | 'scrabble' | 'word_explanation' | 'acting';
+  gameType: 'drawing' | 'explanation' | 'acting';
   categories: string[];
   startedAt: string;
   endedAt?: string;
@@ -19,7 +19,7 @@ export interface Category {
 }
 
 export interface GameSetupParams {
-  gameType: 'drawing' | 'scrabble' | 'word_explanation' | 'acting';
+  gameType: 'drawing' | 'explanation' | 'acting';
   categories: string[];
 }
 
@@ -44,7 +44,7 @@ export interface GameWordDetails {
 
 export interface GameSummary {
   gameId: string;
-  gameType: 'drawing' | 'scrabble' | 'word_explanation' | 'acting';
+  gameType: 'drawing' | 'explanation' | 'acting';
   categories: string[];
   startedAt: string;
   endedAt?: string;
